@@ -9,6 +9,7 @@ Electrobun + React + TypeScript desktop app scaffold for local-first, AI-assiste
 - Vite for the renderer build
 - Park UI component snippets
 - Panda CSS for styling, recipes, and light/dark tokens
+- Diffs (`@pierre/diffs`) for GitHub patch rendering
 - Biome for linting and formatting
 
 ## Setup
@@ -53,6 +54,10 @@ pi -p --no-tools --no-context-files --no-session
 ```
 
 Pi returns structured JSON that is rendered as local draft summary text and findings. Nothing is published to GitHub automatically.
+
+## Diff rendering
+
+The PR diff viewer uses [`@pierre/diffs`](https://diffs.com/docs). GitHub patches from `gh pr diff --patch` are parsed with `parsePatchFiles` and rendered per file with the React `FileDiff` component. Pi inline comments are mapped to Diffs line annotations.
 
 ## Scripts
 

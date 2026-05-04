@@ -8,6 +8,7 @@ import type {
 	GitHubReviewRequest,
 } from "../shared/github";
 import type { PiGeneratedReview, ReviewSeverity } from "../shared/review";
+import { DiffViewer } from "./components/diff-viewer/DiffViewer";
 import { appRpc } from "./rpc";
 
 type ColorMode = "light" | "dark";
@@ -179,6 +180,7 @@ function App() {
 					/>
 					<ReviewDetail
 						key={selectedReviewId ?? "empty-review"}
+						colorMode={colorMode}
 						detail={detail}
 						detailError={detailError}
 						detailState={detailState}
@@ -412,6 +414,7 @@ function ReviewInbox({
 }
 
 function ReviewDetail({
+	colorMode,
 	detail,
 	detailError,
 	detailState,
@@ -420,6 +423,7 @@ function ReviewDetail({
 	setSummary,
 	summary,
 }: {
+	colorMode: ColorMode;
 	detail: GitHubPullRequestDetails | null;
 	detailError: string;
 	detailState: AsyncState;
@@ -545,28 +549,30 @@ function ReviewDetail({
 					<Card.Root>
 						<Card.Header>
 							<HStack justify="space-between">
-								<Card.Title>Unified diff</Card.Title>
-								<Badge colorPalette="gray" variant="surface">
-									gh pr diff
-								</Badge>
+								<Card.Title>Code diff</Card.Title>
+								<HStack gap="2">
+									<Badge colorPalette="gray" variant="surface">
+										gh pr diff
+									</Badge>
+									<Badge colorPalette="cyan" variant="surface">
+										diffs.com
+									</Badge>
+								</HStack>
 							</HStack>
 						</Card.Header>
 						<Card.Body>
-							<Box
-								as="pre"
-								bg="gray.2"
-								borderRadius="l2"
-								maxH="560px"
-								overflow="auto"
-								p="4"
-								textStyle="sm"
-							>
-								<code>
-									{detailState === "loading"
-										? "Loading diff from GitHub..."
-										: detail?.diff || "No diff loaded."}
-								</code>
-							</Box>
+							{detailState === "loading" ? (
+								<StatusCard
+									title="Loading diff from GitHub"
+									body="Calling gh pr diff for this PR..."
+								/>
+							) : (
+								<DiffViewer
+									colorMode={colorMode}
+									inlineComments={generatedReview?.inlineComments ?? []}
+									patch={detail?.diff ?? ""}
+								/>
+							)}
 						</Card.Body>
 					</Card.Root>
 

@@ -1,4 +1,11 @@
-import { BrowserWindow, Updater } from "electrobun/bun";
+import { BrowserView, BrowserWindow, Updater } from "electrobun/bun";
+import type { AppRPCSchema } from "../shared/rpc";
+import {
+	getGitHubAuthStatus,
+	getGitHubPullRequestDetails,
+	listGitHubReviewRequests,
+	startGitHubLogin,
+} from "./services/github";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -19,11 +26,25 @@ async function getMainViewUrl(): Promise<string> {
 	return "views://mainview/index.html";
 }
 
+const appRpc = BrowserView.defineRPC<AppRPCSchema>({
+	maxRequestTime: 5 * 60 * 1000,
+	handlers: {
+		requests: {
+			getGitHubAuthStatus,
+			startGitHubLogin,
+			listGitHubReviewRequests,
+			getGitHubPullRequestDetails,
+		},
+		messages: {},
+	},
+});
+
 const url = await getMainViewUrl();
 
 const mainWindow = new BrowserWindow({
 	title: "PR Review Agent",
 	url,
+	rpc: appRpc,
 	frame: {
 		width: 1280,
 		height: 820,

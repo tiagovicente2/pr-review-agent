@@ -30,6 +30,20 @@ bun run dev
 bun run dev:hmr
 ```
 
+## GitHub connection
+
+The app uses the local `gh` CLI session. Install GitHub CLI, then use the in-app connect page or run:
+
+```bash
+gh auth login --web --git-protocol https
+```
+
+After authentication, the inbox loads real PRs from:
+
+```bash
+gh search prs --review-requested=@me --state=open
+```
+
 ## Scripts
 
 - `bun run lint` — lint with Biome

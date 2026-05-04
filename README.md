@@ -1,0 +1,50 @@
+# PR Review Agent
+
+Electrobun + React + TypeScript desktop app scaffold for local-first, AI-assisted GitHub pull request review drafts.
+
+## Stack
+
+- Electrobun desktop shell
+- React UI written in TypeScript
+- Vite for the renderer build
+- Tailwind CSS for styling
+- Biome for linting and formatting
+
+## Setup
+
+```bash
+bun install
+bun run check
+bun run typecheck
+bun run build
+```
+
+## Development
+
+```bash
+# Electrobun watch mode
+bun run dev
+
+# Vite HMR + Electrobun
+bun run dev:hmr
+```
+
+## Scripts
+
+- `bun run lint` — lint with Biome
+- `bun run format` — format with Biome
+- `bun run check` — run Biome lint + format checks
+- `bun run typecheck` — run TypeScript checks
+- `bun run build` — build the React renderer
+- `bun run build:app` — build the Electrobun app
+
+## Product direction
+
+The full product brief is in [`pr-review-agent-prompt.md`](./pr-review-agent-prompt.md). The current scaffold includes a static PR review inbox/detail UI so the service layers can be implemented incrementally:
+
+1. `gh` CLI integration for auth, review requests, PR metadata, files, and diffs.
+2. OpenAI structured JSON review generation.
+3. SQLite persistence for drafts, stale detection, history, and publish attempts.
+4. Explicit approval and publish flow through `gh`.
+
+The app must never submit a GitHub review without explicit in-app confirmation.

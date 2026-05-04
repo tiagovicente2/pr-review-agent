@@ -44,6 +44,16 @@ After authentication, the inbox loads real PRs from:
 gh search prs --review-requested=@me --state=open
 ```
 
+## Review generation
+
+Click **Generate with Pi** on a loaded PR. The backend sends the PR metadata and unified diff to the local Pi coding agent in print mode:
+
+```bash
+pi -p --no-tools --no-context-files --no-session
+```
+
+Pi returns structured JSON that is rendered as local draft summary text and findings. Nothing is published to GitHub automatically.
+
 ## Scripts
 
 - `bun run lint` — lint with Biome
@@ -61,6 +71,7 @@ The full product brief is in [`pr-review-agent-prompt.md`](./pr-review-agent-pro
 1. `gh` CLI integration for auth, review requests, PR metadata, files, and diffs.
 2. OpenAI structured JSON review generation.
 3. SQLite persistence for drafts, stale detection, history, and publish attempts.
-4. Explicit approval and publish flow through `gh`.
+4. Pi coding agent review generation via `pi -p --no-tools --no-session`.
+5. Explicit approval and publish flow through `gh`.
 
 The app must never submit a GitHub review without explicit in-app confirmation.

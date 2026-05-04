@@ -4,6 +4,7 @@ import type {
 	GitHubPullRequestDetails,
 	GitHubReviewRequest,
 } from "./github";
+import type { GeneratePiReviewParams, PiGeneratedReview } from "./review";
 
 export type AppRPCSchema = {
 	bun: {
@@ -26,6 +27,10 @@ export type AppRPCSchema = {
 					pullRequestNumber: number;
 				};
 				response: GitHubPullRequestDetails;
+			};
+			generateReviewWithPi: {
+				params: GeneratePiReviewParams;
+				response: PiGeneratedReview;
 			};
 		};
 		messages: Record<never, never>;

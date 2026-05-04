@@ -6,6 +6,7 @@ import {
 	listGitHubReviewRequests,
 	startGitHubLogin,
 } from "./services/github";
+import { generateReviewWithPi } from "./services/pi-review";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -34,6 +35,7 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 			startGitHubLogin,
 			listGitHubReviewRequests,
 			getGitHubPullRequestDetails,
+			generateReviewWithPi,
 		},
 		messages: {},
 	},

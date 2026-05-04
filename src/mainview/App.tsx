@@ -1,6 +1,10 @@
 import { useMemo, useState } from "react";
+import { css, cx } from "styled-system/css";
+import { Box, Grid, HStack, Stack } from "styled-system/jsx";
+import { Badge, Button, Card, Input, Textarea } from "@/components/ui";
 
 type DraftStatus = "pending" | "stale" | "approved" | "published" | "rejected" | "failed";
+type ColorMode = "light" | "dark";
 
 type DraftReview = {
 	id: string;
@@ -114,7 +118,8 @@ const findings: Finding[] = [
 	},
 ];
 
-const initialSummary = `This draft review focuses on correctness and user-impacting regressions. I found one high-severity issue around duplicate order submission, plus follow-ups for accessibility and test coverage. Please verify the mutation guard before merging.`;
+const initialSummary =
+	"This draft review focuses on correctness and user-impacting regressions. I found one high-severity issue around duplicate order submission, plus follow-ups for accessibility and test coverage. Please verify the mutation guard before merging.";
 
 const diffPreview = `diff --git a/src/features/checkout/useSubmitOrder.ts b/src/features/checkout/useSubmitOrder.ts
 @@ -36,7 +36,10 @@ export function useSubmitOrder() {
@@ -127,25 +132,26 @@ const diffPreview = `diff --git a/src/features/checkout/useSubmitOrder.ts b/src/
    };
  }`;
 
-const statusStyles: Record<DraftStatus, string> = {
-	pending: "bg-blue-100 text-blue-700 ring-blue-200",
-	stale: "bg-amber-100 text-amber-800 ring-amber-200",
-	approved: "bg-emerald-100 text-emerald-700 ring-emerald-200",
-	published: "bg-zinc-100 text-zinc-700 ring-zinc-200",
-	rejected: "bg-rose-100 text-rose-700 ring-rose-200",
-	failed: "bg-red-100 text-red-700 ring-red-200",
+const statusTone: Record<DraftStatus, "cyan" | "gray" | "green" | "red"> = {
+	pending: "cyan",
+	stale: "red",
+	approved: "green",
+	published: "gray",
+	rejected: "red",
+	failed: "red",
 };
 
-const severityStyles: Record<Finding["severity"], string> = {
-	high: "bg-red-50 text-red-700 border-red-200",
-	medium: "bg-amber-50 text-amber-700 border-amber-200",
-	low: "bg-sky-50 text-sky-700 border-sky-200",
+const severityTone: Record<Finding["severity"], "cyan" | "gray" | "red"> = {
+	high: "red",
+	medium: "cyan",
+	low: "gray",
 };
 
 function App() {
 	const [selectedDraftId, setSelectedDraftId] = useState(drafts[0].id);
 	const [query, setQuery] = useState("");
 	const [summary, setSummary] = useState(initialSummary);
+	const [colorMode, setColorMode] = useState<ColorMode>("dark");
 
 	const filteredDrafts = useMemo(() => {
 		const normalizedQuery = query.trim().toLowerCase();
@@ -163,218 +169,251 @@ function App() {
 	const selectedDraft = drafts.find((draft) => draft.id === selectedDraftId) ?? drafts[0];
 
 	return (
-		<div className="min-h-screen bg-slate-950 text-slate-100">
-			<div className="flex min-h-screen">
-				<aside className="w-96 border-r border-white/10 bg-slate-900/80 p-5 backdrop-blur">
-					<div className="mb-6">
-						<p className="text-sm font-medium uppercase tracking-[0.3em] text-cyan-300">
-							PR Review Agent
-						</p>
-						<h1 className="mt-3 text-3xl font-bold tracking-tight text-white">Review inbox</h1>
-						<p className="mt-2 text-sm text-slate-400">
-							Local-first AI drafts. Nothing is published without your approval.
-						</p>
-					</div>
+		<Box className={colorMode} minH="100vh" bg="gray.1" color="fg.default" colorPalette="cyan">
+			<Grid gridTemplateColumns={{ base: "1fr", lg: "24rem minmax(0, 1fr)" }} minH="100vh">
+				<Box borderRightWidth={{ base: "0", lg: "1px" }} bg="gray.2" p="5">
+					<Stack gap="5">
+						<Stack gap="2">
+							<HStack justify="space-between">
+								<Box textStyle="xs" fontWeight="bold" letterSpacing="0.28em" color="cyan.11">
+									PR Review Agent
+								</Box>
+								<Button
+									size="sm"
+									variant="outline"
+									onClick={() => setColorMode(colorMode === "dark" ? "light" : "dark")}
+								>
+									{colorMode === "dark" ? "Light" : "Dark"}
+								</Button>
+							</HStack>
+							<Box as="h1" textStyle="4xl" fontWeight="bold" letterSpacing="-0.04em">
+								Review inbox
+							</Box>
+							<Box color="fg.muted" textStyle="sm">
+								Local-first AI drafts. Nothing is published without your approval.
+							</Box>
+						</Stack>
 
-					<label className="mb-4 block text-sm font-medium text-slate-300" htmlFor="review-search">
-						Search reviews
-					</label>
-					<input
-						className="mb-5 w-full rounded-xl border border-white/10 bg-slate-950 px-4 py-3 text-sm text-white outline-none ring-cyan-400/0 transition placeholder:text-slate-500 focus:border-cyan-300 focus:ring-4 focus:ring-cyan-400/10"
-						id="review-search"
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Repo, PR, author, title"
-						value={query}
-					/>
-
-					<div className="space-y-3">
-						{filteredDrafts.map((draft) => (
-							<button
-								className={`w-full rounded-2xl border p-4 text-left transition ${
-									draft.id === selectedDraftId
-										? "border-cyan-300/50 bg-cyan-300/10 shadow-lg shadow-cyan-950/50"
-										: "border-white/10 bg-white/[0.03] hover:border-white/20 hover:bg-white/[0.06]"
-								}`}
-								key={draft.id}
-								onClick={() => setSelectedDraftId(draft.id)}
-								type="button"
+						<Stack gap="2">
+							<label
+								className={css({ textStyle: "sm", fontWeight: "medium" })}
+								htmlFor="review-search"
 							>
-								<div className="flex items-start justify-between gap-3">
-									<div>
-										<p className="text-sm font-semibold text-cyan-100">{draft.repo}</p>
-										<p className="mt-1 line-clamp-2 font-medium text-white">
-											#{draft.pullRequestNumber} {draft.title}
-										</p>
-									</div>
-									<span
-										className={`rounded-full px-2.5 py-1 text-xs font-semibold ring-1 ${statusStyles[draft.status]}`}
-									>
-										{draft.status}
-									</span>
-								</div>
-								<div className="mt-4 flex items-center justify-between text-xs text-slate-400">
-									<span>@{draft.author}</span>
-									<span>{draft.lastGeneratedAt}</span>
-								</div>
-							</button>
-						))}
-					</div>
-				</aside>
+								Search reviews
+							</label>
+							<Input
+								id="review-search"
+								onChange={(event) => setQuery(event.target.value)}
+								placeholder="Repo, PR, author, title"
+								value={query}
+								variant="surface"
+							/>
+						</Stack>
 
-				<main className="flex-1 overflow-y-auto">
-					<header className="border-b border-white/10 bg-slate-950/85 px-8 py-6 backdrop-blur">
-						<div className="flex flex-wrap items-start justify-between gap-4">
-							<div>
-								<div className="flex flex-wrap items-center gap-3">
-									<span
-										className={`rounded-full px-3 py-1 text-xs font-bold uppercase tracking-wide ring-1 ${statusStyles[selectedDraft.status]}`}
+						<Stack gap="3">
+							{filteredDrafts.map((draft) => {
+								const selected = draft.id === selectedDraftId;
+
+								return (
+									<Card.Root
+										asChild
+										className={cx(
+											css({ cursor: "pointer", transition: "all 150ms ease" }),
+											selected &&
+												css({ borderColor: "cyan.8", boxShadow: "0 0 0 1px token(colors.cyan.8)" }),
+										)}
+										key={draft.id}
 									>
+										<button onClick={() => setSelectedDraftId(draft.id)} type="button">
+											<Card.Body p="4">
+												<HStack alignItems="flex-start" justify="space-between" gap="3">
+													<Stack gap="1" minW="0">
+														<Box color="cyan.11" fontWeight="semibold" textStyle="sm">
+															{draft.repo}
+														</Box>
+														<Box fontWeight="medium" textAlign="left">
+															#{draft.pullRequestNumber} {draft.title}
+														</Box>
+													</Stack>
+													<Badge colorPalette={statusTone[draft.status]}>{draft.status}</Badge>
+												</HStack>
+												<HStack justify="space-between" mt="4" color="fg.muted" textStyle="xs">
+													<Box>@{draft.author}</Box>
+													<Box>{draft.lastGeneratedAt}</Box>
+												</HStack>
+											</Card.Body>
+										</button>
+									</Card.Root>
+								);
+							})}
+						</Stack>
+					</Stack>
+				</Box>
+
+				<Box minW="0">
+					<Box borderBottomWidth="1px" bg="gray.1" px="8" py="6">
+						<HStack alignItems="flex-start" flexWrap="wrap" justify="space-between" gap="6">
+							<Stack gap="3">
+								<HStack flexWrap="wrap" gap="2">
+									<Badge colorPalette={statusTone[selectedDraft.status]} size="lg">
 										{selectedDraft.status}
-									</span>
-									<span className="rounded-full bg-slate-800 px-3 py-1 text-xs font-medium text-slate-300">
+									</Badge>
+									<Badge colorPalette="gray" variant="surface" size="lg">
 										head {selectedDraft.headSha}
-									</span>
-								</div>
-								<h2 className="mt-4 text-3xl font-bold text-white">
+									</Badge>
+								</HStack>
+								<Box as="h2" textStyle="4xl" fontWeight="bold" letterSpacing="-0.04em">
 									#{selectedDraft.pullRequestNumber} {selectedDraft.title}
-								</h2>
-								<p className="mt-2 text-slate-400">
+								</Box>
+								<Box color="fg.muted">
 									{selectedDraft.repo} by @{selectedDraft.author} · requested{" "}
 									{selectedDraft.requestedAt}
-								</p>
-							</div>
-							<div className="flex gap-3">
-								<button
-									className="rounded-xl border border-white/10 px-4 py-2 text-sm font-semibold text-slate-200 hover:bg-white/10"
-									type="button"
-								>
-									Regenerate
-								</button>
-								<button
-									className="rounded-xl border border-rose-400/30 px-4 py-2 text-sm font-semibold text-rose-200 hover:bg-rose-500/10"
-									type="button"
-								>
+								</Box>
+							</Stack>
+
+							<HStack flexWrap="wrap" gap="3">
+								<Button variant="outline">Regenerate</Button>
+								<Button colorPalette="red" variant="outline">
 									Reject
-								</button>
-								<button
-									className="rounded-xl bg-cyan-300 px-4 py-2 text-sm font-bold text-slate-950 hover:bg-cyan-200"
-									type="button"
-								>
-									Approve to publish
-								</button>
-							</div>
-						</div>
-					</header>
+								</Button>
+								<Button>Approve to publish</Button>
+							</HStack>
+						</HStack>
+					</Box>
 
-					<section className="grid gap-5 p-8 xl:grid-cols-[280px_minmax(0,1fr)_360px]">
-						<div className="space-y-5">
-							<div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-								<h3 className="font-semibold text-white">PR context</h3>
-								<div className="mt-4 grid grid-cols-2 gap-3 text-sm">
-									<div className="rounded-xl bg-slate-900 p-3">
-										<p className="text-slate-500">Files</p>
-										<p className="mt-1 text-xl font-bold">{selectedDraft.filesChanged}</p>
-									</div>
-									<div className="rounded-xl bg-slate-900 p-3">
-										<p className="text-slate-500">Comments</p>
-										<p className="mt-1 text-xl font-bold">{selectedDraft.comments}</p>
-									</div>
-									<div className="rounded-xl bg-slate-900 p-3">
-										<p className="text-slate-500">Freshness</p>
-										<p className="mt-1 font-semibold capitalize">{selectedDraft.freshness}</p>
-									</div>
-									<div className="rounded-xl bg-slate-900 p-3">
-										<p className="text-slate-500">Severity</p>
-										<p className="mt-1 font-semibold capitalize">{selectedDraft.severity}</p>
-									</div>
-								</div>
-							</div>
+					<Grid
+						gridTemplateColumns={{ base: "1fr", xl: "280px minmax(0, 1fr) 360px" }}
+						gap="5"
+						p="8"
+					>
+						<Stack gap="5">
+							<Card.Root>
+								<Card.Header>
+									<Card.Title>PR context</Card.Title>
+									<Card.Description>Fresh local draft metadata</Card.Description>
+								</Card.Header>
+								<Card.Body>
+									<Grid columns={2} gap="3">
+										<Metric label="Files" value={selectedDraft.filesChanged} />
+										<Metric label="Comments" value={selectedDraft.comments} />
+										<Metric label="Freshness" value={selectedDraft.freshness} />
+										<Metric label="Severity" value={selectedDraft.severity} />
+									</Grid>
+								</Card.Body>
+							</Card.Root>
 
-							<div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-								<h3 className="font-semibold text-white">Changed files</h3>
-								<div className="mt-4 space-y-2">
-									{changedFiles.map((filePath) => (
-										<button
-											className="block w-full truncate rounded-lg bg-slate-900 px-3 py-2 text-left text-sm text-slate-300 hover:bg-slate-800"
-											key={filePath}
-											type="button"
-										>
-											{filePath}
-										</button>
-									))}
-								</div>
-							</div>
-						</div>
+							<Card.Root>
+								<Card.Header>
+									<Card.Title>Changed files</Card.Title>
+								</Card.Header>
+								<Card.Body>
+									<Stack gap="2">
+										{changedFiles.map((filePath) => (
+											<Button justifyContent="flex-start" key={filePath} variant="plain">
+												<Box truncate>{filePath}</Box>
+											</Button>
+										))}
+									</Stack>
+								</Card.Body>
+							</Card.Root>
+						</Stack>
 
-						<div className="space-y-5">
-							<div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-								<div className="flex items-center justify-between">
-									<h3 className="font-semibold text-white">Unified diff</h3>
-									<span className="text-xs text-slate-500">gh pr diff</span>
-								</div>
-								<pre className="mt-4 overflow-x-auto rounded-xl bg-slate-950 p-4 text-sm leading-6 text-slate-300">
-									<code>{diffPreview}</code>
-								</pre>
-							</div>
+						<Stack gap="5" minW="0">
+							<Card.Root>
+								<Card.Header>
+									<HStack justify="space-between">
+										<Card.Title>Unified diff</Card.Title>
+										<Badge colorPalette="gray" variant="surface">
+											gh pr diff
+										</Badge>
+									</HStack>
+								</Card.Header>
+								<Card.Body>
+									<Box as="pre" bg="gray.2" borderRadius="l2" overflowX="auto" p="4" textStyle="sm">
+										<code>{diffPreview}</code>
+									</Box>
+								</Card.Body>
+							</Card.Root>
 
-							<div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-								<label className="font-semibold text-white" htmlFor="review-summary">
-									Editable summary review
-								</label>
-								<textarea
-									className="mt-4 min-h-44 w-full rounded-xl border border-white/10 bg-slate-950 p-4 text-sm leading-6 text-slate-100 outline-none focus:border-cyan-300"
-									id="review-summary"
-									onChange={(event) => setSummary(event.target.value)}
-									value={summary}
-								/>
-								<p className="mt-3 text-xs text-slate-500">
-									This payload stays local until the confirmation step publishes it through gh.
-								</p>
-							</div>
-						</div>
+							<Card.Root>
+								<Card.Header>
+									<Card.Title>Editable summary review</Card.Title>
+									<Card.Description>
+										This payload stays local until explicit GitHub publish confirmation.
+									</Card.Description>
+								</Card.Header>
+								<Card.Body>
+									<Textarea
+										onChange={(event) => setSummary(event.target.value)}
+										rows={8}
+										value={summary}
+										variant="surface"
+									/>
+								</Card.Body>
+							</Card.Root>
+						</Stack>
 
-						<div className="space-y-5">
-							<div className="rounded-2xl border border-white/10 bg-white/[0.03] p-5">
-								<h3 className="font-semibold text-white">Generated findings</h3>
-								<div className="mt-4 space-y-3">
-									{findings.map((finding) => (
-										<article
-											className="rounded-xl border border-white/10 bg-slate-950 p-4"
-											key={finding.id}
-										>
-											<div className="flex items-center justify-between gap-3">
-												<span
-													className={`rounded-full border px-2.5 py-1 text-xs font-bold uppercase ${severityStyles[finding.severity]}`}
-												>
-													{finding.severity}
-												</span>
-												<span className="text-xs text-slate-500">
-													{Math.round(finding.confidence * 100)}% confidence
-												</span>
-											</div>
-											<h4 className="mt-3 font-semibold text-white">{finding.title}</h4>
-											<p className="mt-2 text-sm text-slate-400">{finding.body}</p>
-											<p className="mt-3 truncate text-xs text-cyan-200">
-												{finding.filePath}:{finding.line}
-											</p>
-										</article>
-									))}
-								</div>
-							</div>
+						<Stack gap="5">
+							<Card.Root>
+								<Card.Header>
+									<Card.Title>Generated findings</Card.Title>
+								</Card.Header>
+								<Card.Body>
+									<Stack gap="3">
+										{findings.map((finding) => (
+											<Card.Root key={finding.id} variant="outline">
+												<Card.Body p="4">
+													<HStack justify="space-between" gap="3">
+														<Badge colorPalette={severityTone[finding.severity]}>
+															{finding.severity}
+														</Badge>
+														<Box color="fg.muted" textStyle="xs">
+															{Math.round(finding.confidence * 100)}% confidence
+														</Box>
+													</HStack>
+													<Box mt="3" fontWeight="semibold">
+														{finding.title}
+													</Box>
+													<Box mt="2" color="fg.muted" textStyle="sm">
+														{finding.body}
+													</Box>
+													<Box mt="3" color="cyan.11" textStyle="xs">
+														{finding.filePath}:{finding.line}
+													</Box>
+												</Card.Body>
+											</Card.Root>
+										))}
+									</Stack>
+								</Card.Body>
+							</Card.Root>
 
-							<div className="rounded-2xl border border-cyan-300/20 bg-cyan-300/10 p-5">
-								<h3 className="font-semibold text-cyan-100">Next integration steps</h3>
-								<ul className="mt-3 space-y-2 text-sm text-cyan-50/80">
-									<li>Wrap all GitHub calls behind a non-interactive gh service.</li>
-									<li>Persist drafts and publish attempts in SQLite.</li>
-									<li>Generate strict JSON reviews with the configured OpenAI model.</li>
-								</ul>
-							</div>
-						</div>
-					</section>
-				</main>
-			</div>
-		</div>
+							<Card.Root bg="cyan.subtle.bg" borderColor="cyan.surface.border" borderWidth="1px">
+								<Card.Body pt="6">
+									<Card.Title color="cyan.12">Park UI + Panda CSS</Card.Title>
+									<Box mt="2" color="cyan.11" textStyle="sm">
+										Theme tokens include light and dark modes with cyan accent and slate gray
+										palettes.
+									</Box>
+								</Card.Body>
+							</Card.Root>
+						</Stack>
+					</Grid>
+				</Box>
+			</Grid>
+		</Box>
+	);
+}
+
+function Metric({ label, value }: { label: string; value: number | string }) {
+	return (
+		<Box bg="gray.2" borderRadius="l2" p="3">
+			<Box color="fg.muted" textStyle="xs">
+				{label}
+			</Box>
+			<Box mt="1" fontWeight="bold" textTransform="capitalize">
+				{value}
+			</Box>
+		</Box>
 	);
 }
 

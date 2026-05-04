@@ -7,7 +7,8 @@ Electrobun + React + TypeScript desktop app scaffold for local-first, AI-assiste
 - Electrobun desktop shell
 - React UI written in TypeScript
 - Vite for the renderer build
-- Tailwind CSS for styling
+- Park UI component snippets
+- Panda CSS for styling, recipes, and light/dark tokens
 - Biome for linting and formatting
 
 ## Setup
@@ -34,9 +35,10 @@ bun run dev:hmr
 - `bun run lint` — lint with Biome
 - `bun run format` — format with Biome
 - `bun run check` — run Biome lint + format checks
-- `bun run typecheck` — run TypeScript checks
-- `bun run build` — build the React renderer
-- `bun run build:app` — build the Electrobun app
+- `bun run panda:build` — generate Panda CSS system and styles
+- `bun run typecheck` — generate Panda output and run TypeScript checks
+- `bun run build` — generate Panda output and build the React renderer
+- `bun run build:app` — generate Panda output and build the Electrobun app
 
 ## Product direction
 

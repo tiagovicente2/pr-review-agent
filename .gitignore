@@ -2,4 +2,6 @@ node_modules/
 build/
 dist/
 artifacts/
+styled-system/
+styled-system-studio/
 *.tsbuildinfo

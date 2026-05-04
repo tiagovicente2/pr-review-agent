@@ -151,7 +151,15 @@ function App() {
 	const currentAuthStatus = authStatus ?? emptyAuthStatus;
 
 	return (
-		<Box className={colorMode} minH="100vh" bg="gray.1" color="fg.default" colorPalette="cyan">
+		<Box
+			className={colorMode}
+			h="100vh"
+			minH="0"
+			overflow="hidden"
+			bg="gray.1"
+			color="fg.default"
+			colorPalette="cyan"
+		>
 			{!currentAuthStatus.authenticated ? (
 				<GitHubLoginPage
 					authState={authState}
@@ -164,7 +172,12 @@ function App() {
 					status={currentAuthStatus}
 				/>
 			) : (
-				<Grid gridTemplateColumns={{ base: "1fr", lg: "24rem minmax(0, 1fr)" }} minH="100vh">
+				<Grid
+					gridTemplateColumns={{ base: "1fr", lg: "24rem minmax(0, 1fr)" }}
+					h="100%"
+					minH="0"
+					overflow={{ base: "auto", lg: "hidden" }}
+				>
 					<ReviewInbox
 						colorMode={colorMode}
 						onRefresh={loadReviewRequests}
@@ -219,7 +232,7 @@ function GitHubLoginPage({
 		: "Use your GitHub account through the local gh CLI credential store.";
 
 	return (
-		<Grid minH="100vh" placeItems="center" p="6">
+		<Grid h="100%" minH="0" overflowY="auto" placeItems="center" p="6">
 			<Card.Root maxW="560px" w="full">
 				<Card.Header>
 					<HStack justify="space-between">
@@ -309,7 +322,14 @@ function ReviewInbox({
 	username?: string;
 }) {
 	return (
-		<Box borderRightWidth={{ base: "0", lg: "1px" }} bg="gray.2" p="5">
+		<Box
+			borderRightWidth={{ base: "0", lg: "1px" }}
+			bg="gray.2"
+			h={{ base: "auto", lg: "100%" }}
+			minH="0"
+			overflowY={{ base: "visible", lg: "auto" }}
+			p="5"
+		>
 			<Stack gap="5">
 				<Stack gap="2">
 					<HStack justify="space-between">
@@ -459,7 +479,7 @@ function ReviewDetail({
 
 	if (!review) {
 		return (
-			<Grid minH="100vh" placeItems="center" p="8">
+			<Grid h="100%" minH="0" overflowY="auto" placeItems="center" p="8">
 				<StatusCard
 					title="Select a pull request"
 					body="Your real GitHub review requests will appear in the inbox."
@@ -469,7 +489,12 @@ function ReviewDetail({
 	}
 
 	return (
-		<Box minW="0">
+		<Box
+			h={{ base: "auto", lg: "100%" }}
+			minH="0"
+			minW="0"
+			overflowY={{ base: "visible", lg: "auto" }}
+		>
 			<Box borderBottomWidth="1px" bg="gray.1" px="8" py="6">
 				<HStack alignItems="flex-start" flexWrap="wrap" justify="space-between" gap="6">
 					<Stack gap="3">
@@ -561,18 +586,20 @@ function ReviewDetail({
 							</HStack>
 						</Card.Header>
 						<Card.Body>
-							{detailState === "loading" ? (
-								<StatusCard
-									title="Loading diff from GitHub"
-									body="Calling gh pr diff for this PR..."
-								/>
-							) : (
-								<DiffViewer
-									colorMode={colorMode}
-									inlineComments={generatedReview?.inlineComments ?? []}
-									patch={detail?.diff ?? ""}
-								/>
-							)}
+							<Box maxH={{ base: "70vh", xl: "calc(100vh - 18rem)" }} minW="0" overflow="auto">
+								{detailState === "loading" ? (
+									<StatusCard
+										title="Loading diff from GitHub"
+										body="Calling gh pr diff for this PR..."
+									/>
+								) : (
+									<DiffViewer
+										colorMode={colorMode}
+										inlineComments={generatedReview?.inlineComments ?? []}
+										patch={detail?.diff ?? ""}
+									/>
+								)}
+							</Box>
 						</Card.Body>
 					</Card.Root>
 

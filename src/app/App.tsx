@@ -1,7 +1,6 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Grid } from 'styled-system/jsx'
-import { TitleBar } from '@/app/title-bar/TitleBar'
-import { GitHubLoginPage } from '@/features/auth/components/GitHubLoginPage'
+import { OnboardingPage } from '@/features/auth/components/OnboardingPage'
 import { ReviewDetail } from '@/features/reviews/components/ReviewDetail'
 import { ReviewInbox } from '@/features/reviews/components/ReviewInbox'
 import { SettingsPage } from '@/features/settings/components/SettingsPage'
@@ -21,10 +20,15 @@ const emptyAuthStatus: GitHubAuthStatus = {
 	message: 'Checking GitHub CLI status...',
 }
 
+const onboardingStorageKey = 'pr-review-agent:onboarding-complete'
+
 function App() {
 	const [colorModePreference, setColorModePreference] = useState<ColorModePreference>('system')
 	const [systemColorMode, setSystemColorMode] = useState<ColorMode>('dark')
 	const [showSettings, setShowSettings] = useState(false)
+	const [onboardingComplete, setOnboardingComplete] = useState(
+		() => window.localStorage.getItem(onboardingStorageKey) === 'true',
+	)
 	const [authStatus, setAuthStatus] = useState<GitHubAuthStatus | null>(null)
 	const [authState, setAuthState] = useState<AsyncState>('loading')
 	const [connectState, setConnectState] = useState<AsyncState>('idle')
@@ -41,8 +45,6 @@ function App() {
 
 	const colorMode: ColorMode =
 		colorModePreference === 'system' ? systemColorMode : colorModePreference
-	const toggleColorMode = () =>
-		setColorModePreference((current) => (current === 'dark' ? 'light' : 'dark'))
 
 	useEffect(() => {
 		const media = window.matchMedia('(prefers-color-scheme: dark)')
@@ -61,6 +63,11 @@ function App() {
 
 	const handleSettingsSaved = (settings: AppSettings) => {
 		setColorModePreference(settings.colorMode)
+	}
+
+	const completeOnboarding = () => {
+		window.localStorage.setItem(onboardingStorageKey, 'true')
+		setOnboardingComplete(true)
 	}
 
 	const loadReviewRequests = useCallback(async () => {
@@ -185,22 +192,20 @@ function App() {
 			bg="gray.1"
 			color="fg.default"
 			colorPalette="cyan"
-			pt="40px"
 		>
-			<TitleBar title="PR Review Agent" />
-			{!currentAuthStatus.authenticated ? (
-				<GitHubLoginPage
+			{showSettings ? (
+				<SettingsPage onBack={() => setShowSettings(false)} onSaved={handleSettingsSaved} />
+			) : !currentAuthStatus.authenticated || !onboardingComplete ? (
+				<OnboardingPage
 					authState={authState}
-					colorMode={colorMode}
 					connectState={connectState}
 					loginOutput={loginOutput}
 					onConnect={handleConnect}
+					onComplete={completeOnboarding}
+					onOpenSettings={() => setShowSettings(true)}
 					onRefresh={refreshAuth}
-					onToggleColorMode={toggleColorMode}
 					status={currentAuthStatus}
 				/>
-			) : showSettings ? (
-				<SettingsPage onBack={() => setShowSettings(false)} onSaved={handleSettingsSaved} />
 			) : (
 				<Grid
 					gridTemplateColumns={{ base: 'minmax(0, 1fr)', lg: '24rem minmax(0, 1fr)' }}

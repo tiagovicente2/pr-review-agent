@@ -12,6 +12,12 @@ import { generateReviewWithPi } from './services/pi-review'
 import { getPiReviewGenerationJob, startPiReviewGeneration } from './services/pi-review-jobs'
 import { getSavedGeneratedReview } from './services/review-store'
 import { getAppSettings, saveAppSettings } from './services/settings'
+import {
+	closeWindow,
+	minimizeWindow,
+	setMainWindow,
+	toggleMaximizeWindow,
+} from './services/window-controls'
 
 const DEV_SERVER_PORT = 5173
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`
@@ -47,6 +53,9 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 			getPiReviewGenerationJob,
 			getSavedPiReview: getSavedGeneratedReview,
 			openExternalUrl,
+			minimizeWindow,
+			toggleMaximizeWindow,
+			closeWindow,
 			publishPiReviewComment,
 			publishPiReviewComments,
 		},
@@ -66,7 +75,9 @@ const mainWindow = new BrowserWindow({
 		x: 120,
 		y: 80,
 	},
-	titleBarStyle: 'hidden',
+	titleBarStyle: 'default',
 })
+
+setMainWindow(mainWindow)
 
 console.log('PR Review Agent started', mainWindow.id)

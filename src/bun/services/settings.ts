@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from 'node:fs'
 import { dirname, join } from 'node:path'
-import type { AppSettings, SaveAppSettingsParams } from '@/shared/settings'
+import type { AppSettings, ReviewLanguage, SaveAppSettingsParams } from '@/shared/settings'
 
 const settingsPath = getSettingsPath()
 const instructionsPath = getInstructionsPath()
@@ -12,6 +12,7 @@ export function getAppSettings(): AppSettings {
 		colorMode: saved.colorMode ?? 'system',
 		codeAgent: saved.codeAgent ?? 'pi',
 		model: saved.model ?? 'pi-agent',
+		reviewLanguage: getReviewLanguage(saved.reviewLanguage),
 		reviewerInstructions: readFileSync(instructionsPath, 'utf8'),
 		reviewerInstructionsPath: instructionsPath,
 	}
@@ -27,6 +28,7 @@ export function saveAppSettings(params: SaveAppSettingsParams): AppSettings {
 				colorMode: params.colorMode,
 				codeAgent,
 				model: params.model || 'pi-agent',
+				reviewLanguage: getReviewLanguage(params.reviewLanguage),
 			},
 			null,
 			2,
@@ -41,17 +43,33 @@ export function getReviewerInstructions() {
 	return readFileSync(instructionsPath, 'utf8').trim()
 }
 
+export function getReviewLanguage(value?: unknown): ReviewLanguage {
+	if (value !== undefined) {
+		return getReviewLanguageValue(value)
+	}
+	ensureSettingsFiles()
+	return getReviewLanguageValue(readJsonSettings().reviewLanguage)
+}
+
 function ensureSettingsFiles() {
 	mkdirSync(dirname(settingsPath), { recursive: true })
 	if (!existsSync(settingsPath)) {
 		writeFileSync(
 			settingsPath,
-			`${JSON.stringify({ colorMode: 'system', codeAgent: 'pi', model: 'pi-agent' }, null, 2)}\n`,
+			`${JSON.stringify(
+				{ colorMode: 'system', codeAgent: 'pi', model: 'pi-agent', reviewLanguage: 'english' },
+				null,
+				2,
+			)}\n`,
 		)
 	}
 	if (!existsSync(instructionsPath)) {
 		writeFileSync(instructionsPath, '')
 	}
+}
+
+function getReviewLanguageValue(value: unknown): ReviewLanguage {
+	return value === 'portuguese' ? 'portuguese' : 'english'
 }
 
 function readJsonSettings() {

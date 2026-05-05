@@ -7,7 +7,7 @@ import { getErrorMessage } from '@/app/utils'
 import { StatusCard, TabButton } from '@/components/common'
 import { MarkdownContent } from '@/components/markdown/MarkdownContent'
 import { Button, Card, Textarea } from '@/components/ui'
-import type { AppSettings, CodeAgent, ColorModePreference } from '@/shared/settings'
+import type { AppSettings, CodeAgent, ColorModePreference, ReviewLanguage } from '@/shared/settings'
 
 export function SettingsPage({
 	onBack,
@@ -126,6 +126,18 @@ export function SettingsPage({
 											value={settings.model}
 											onChange={(model) => setSettings({ ...settings, model })}
 											options={['pi-agent']}
+										/>
+									</InlineField>
+									<InlineField label="Review language">
+										<Select
+											value={settings.reviewLanguage}
+											onChange={(value) =>
+												setSettings({
+													...settings,
+													reviewLanguage: value as ReviewLanguage,
+												})
+											}
+											options={['english', 'portuguese']}
 										/>
 									</InlineField>
 								</Stack>

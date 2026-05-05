@@ -65,6 +65,18 @@ export type AppRPCSchema = {
 				params: { url: string }
 				response: { ok: true }
 			}
+			minimizeWindow: {
+				params: undefined
+				response: { ok: true }
+			}
+			toggleMaximizeWindow: {
+				params: undefined
+				response: { ok: true }
+			}
+			closeWindow: {
+				params: undefined
+				response: { ok: true }
+			}
 			publishPiReviewComment: {
 				params: PublishPiReviewCommentParams
 				response: PublishPiReviewCommentResult

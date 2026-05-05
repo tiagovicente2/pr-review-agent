@@ -1,5 +1,6 @@
 import { css } from 'styled-system/css'
 import { Box, HStack } from 'styled-system/jsx'
+import { appRpc } from '@/app/rpc'
 
 type CssProps = Parameters<typeof css>[0]
 
@@ -21,6 +22,9 @@ const titleBarStyle = css({
 	webkitAppRegion: 'drag',
 } as CssProps)
 
+const dragRegionClass = 'electrobun-webkit-app-region-drag'
+const noDragRegionClass = 'electrobun-webkit-app-region-no-drag'
+
 const controlsStyle = css({
 	webkitAppRegion: 'no-drag',
 } as CssProps)
@@ -31,7 +35,7 @@ interface TitleBarProps {
 
 export function TitleBar({ title }: TitleBarProps) {
 	return (
-		<Box className={titleBarStyle}>
+		<Box className={`${titleBarStyle} ${dragRegionClass}`}>
 			<Box
 				className={css({
 					fontSize: '13px',
@@ -42,10 +46,10 @@ export function TitleBar({ title }: TitleBarProps) {
 				{title}
 			</Box>
 			<Box flex="1" />
-			<HStack gap="1" className={controlsStyle}>
-				<TitleBarButton onClick={() => window.electrobun?.minimize()} label="─" />
-				<TitleBarButton onClick={() => window.electrobun?.toggleMaximize()} label="□" />
-				<TitleBarButton onClick={() => window.electrobun?.close()} label="✕" close />
+			<HStack gap="1" className={`${controlsStyle} ${noDragRegionClass}`}>
+				<TitleBarButton onClick={() => appRpc.request.minimizeWindow()} label="─" />
+				<TitleBarButton onClick={() => appRpc.request.toggleMaximizeWindow()} label="□" />
+				<TitleBarButton onClick={() => appRpc.request.closeWindow()} label="✕" close />
 			</HStack>
 		</Box>
 	)

@@ -45,6 +45,14 @@ export type AppRPCSchema = {
 				}
 				response: GitHubPullRequestDetails
 			}
+			getGitHubPullRequestDiff: {
+				params: {
+					repo: string
+					pullRequestNumber: number
+					headSha: string
+				}
+				response: { diff: string }
+			}
 			generateReviewWithPi: {
 				params: GeneratePiReviewParams
 				response: PiGeneratedReview

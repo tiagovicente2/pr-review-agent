@@ -51,7 +51,7 @@ export function SettingsPage({
 
 	return (
 		<Box h="100%" overflow="hidden" px="8" py="6">
-			<Stack gap="4" h="100%" maxW="9/12" minH="0" mx="auto">
+			<Stack gap="4" h="100%" maxW="10/12" minH="0" mx="auto">
 				<HStack alignItems="flex-start" justify="space-between">
 					<Box>
 						<Box as="h1" fontWeight="bold" textStyle="3xl">

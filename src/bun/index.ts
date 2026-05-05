@@ -3,6 +3,7 @@ import type { AppRPCSchema } from '@/shared/rpc'
 import {
 	getGitHubAuthStatus,
 	getGitHubPullRequestDetails,
+	getGitHubPullRequestDiff,
 	listGitHubReviewRequests,
 	startGitHubLogin,
 } from './services/github'
@@ -48,6 +49,7 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 			startGitHubLogin,
 			listGitHubReviewRequests,
 			getGitHubPullRequestDetails,
+			getGitHubPullRequestDiff,
 			generateReviewWithPi,
 			startPiReviewGeneration,
 			getPiReviewGenerationJob,

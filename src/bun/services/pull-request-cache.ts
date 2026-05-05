@@ -18,6 +18,17 @@ CREATE TABLE IF NOT EXISTS pull_request_details_cache (
 	updated_at TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS idx_pull_request_details_cache_pr ON pull_request_details_cache(repo, pr_number);
+
+CREATE TABLE IF NOT EXISTS pull_request_diff_cache (
+	id TEXT PRIMARY KEY,
+	repo TEXT NOT NULL,
+	pr_number INTEGER NOT NULL,
+	head_sha TEXT NOT NULL,
+	diff_text TEXT NOT NULL,
+	created_at TEXT NOT NULL,
+	updated_at TEXT NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_pull_request_diff_cache_pr ON pull_request_diff_cache(repo, pr_number, head_sha);
 `)
 
 export function getCachedPullRequestDetails(params: {
@@ -41,6 +52,7 @@ export function getCachedPullRequestDetails(params: {
 }
 
 export function saveCachedPullRequestDetails(details: GitHubPullRequestDetails) {
+	const metadata = { ...details, diff: '' }
 	const now = new Date().toISOString()
 	const id = getPullRequestCacheKey(details)
 	const existing = db
@@ -58,7 +70,47 @@ export function saveCachedPullRequestDetails(details: GitHubPullRequestDetails) 
 		details.repo,
 		details.pullRequestNumber,
 		details.headSha,
-		JSON.stringify(details),
+		JSON.stringify(metadata),
+		existing?.created_at ?? now,
+		now,
+	)
+}
+
+export function getCachedPullRequestDiff(params: {
+	repo: string
+	pullRequestNumber: number
+	headSha: string
+}): string | null {
+	const row = db
+		.query('SELECT diff_text FROM pull_request_diff_cache WHERE id = ?')
+		.get(getPullRequestCacheKey(params)) as { diff_text: string } | undefined
+	return row?.diff_text ?? null
+}
+
+export function saveCachedPullRequestDiff(params: {
+	repo: string
+	pullRequestNumber: number
+	headSha: string
+	diff: string
+}) {
+	const now = new Date().toISOString()
+	const id = getPullRequestCacheKey(params)
+	const existing = db
+		.query('SELECT created_at FROM pull_request_diff_cache WHERE id = ?')
+		.get(id) as { created_at: string } | undefined
+
+	db.query(`
+		INSERT INTO pull_request_diff_cache (id, repo, pr_number, head_sha, diff_text, created_at, updated_at)
+		VALUES (?, ?, ?, ?, ?, ?, ?)
+		ON CONFLICT(id) DO UPDATE SET
+			diff_text = excluded.diff_text,
+			updated_at = excluded.updated_at
+	`).run(
+		id,
+		params.repo,
+		params.pullRequestNumber,
+		params.headSha,
+		params.diff,
 		existing?.created_at ?? now,
 		now,
 	)

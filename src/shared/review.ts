@@ -44,6 +44,7 @@ export type PiReviewGenerationJob = {
 	id: string
 	pullRequestKey: string
 	status: 'running' | 'completed' | 'failed'
+	statusMessage?: string
 	startedAt: string
 	finishedAt?: string
 	review?: PiGeneratedReview

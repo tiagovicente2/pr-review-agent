@@ -1,28 +1,29 @@
+import { useEffect, useState } from 'react'
 import { css } from 'styled-system/css'
 import { Box, Grid, HStack, Stack } from 'styled-system/jsx'
 import type { AsyncState } from '@/app/types'
 import { StatusCard } from '@/components/common'
 import { MarkdownContent } from '@/components/markdown/MarkdownContent'
-import { Badge, Button, Card } from '@/components/ui'
+import { Badge, Button, Card, Textarea } from '@/components/ui'
 import type { PiGeneratedReview, PiReviewFinding, ReviewSeverity } from '@/shared/review'
 
 export function GeneratedFindings({
 	error,
+	generationMessage,
 	generationState,
 	onPublishFinding,
 	publishingFindingIds,
 	review,
 }: {
 	error: string
+	generationMessage?: string
 	generationState: AsyncState
 	onPublishFinding?: (finding: PiReviewFinding) => void
 	publishingFindingIds?: Set<string>
 	review: PiGeneratedReview | null
 }) {
 	if (generationState === 'loading') {
-		return (
-			<StatusCard title="Pi is reviewing this PR" body="This can take a minute for larger diffs." />
-		)
+		return <PiReviewProgress message={generationMessage} />
 	}
 
 	if (error) {
@@ -61,62 +62,126 @@ export function GeneratedFindings({
 					body="Pi did not identify publishable findings for this diff."
 				/>
 			) : null}
-			{review.findings.map((finding) => {
-				const canPublish = Boolean(finding.filePath && finding.lineStart)
-				const hasFix = Boolean(finding.fixSuggestion)
-				return (
-					<Card.Root key={finding.id} variant="outline">
-						<Card.Body p="4">
-							<Grid
-								gridTemplateColumns={
-									hasFix ? { base: '1fr', xl: 'minmax(0, 0.9fr) minmax(0, 1.1fr)' } : '1fr'
-								}
-								gap="5"
-							>
-								<Stack gap="3" minW="0">
-									<HStack justify="space-between" gap="3">
-										<Badge colorPalette={severityColorPalette(finding.severity)}>
-											{finding.severity}
-										</Badge>
-										<Button
-											disabled={!canPublish}
-											loading={publishingFindingIds?.has(finding.id)}
-											onClick={() => onPublishFinding?.(finding)}
-											size="xs"
-											variant="outline"
-										>
-											Publish comment
-										</Button>
-									</HStack>
-									<Box fontWeight="semibold">{finding.title}</Box>
-									<MarkdownContent>{finding.body}</MarkdownContent>
-									{finding.suggestedCommentBody ? (
-										<Box bg="gray.2" borderRadius="l2" p="3" textStyle="sm">
-											<Box color="fg.muted" fontWeight="semibold" mb="1" textStyle="xs">
-												PR comment
-											</Box>
-											<MarkdownContent>{finding.suggestedCommentBody}</MarkdownContent>
-										</Box>
-									) : null}
-									<HStack color="fg.muted" justify="space-between" textStyle="xs">
-										<Box color="cyan.11">
-											{finding.filePath}
-											{finding.lineStart ? `:${finding.lineStart}` : ''}
-										</Box>
-										<Box>{Math.round(finding.confidence * 100)}% confidence</Box>
-									</HStack>
-								</Stack>
-								{hasFix ? (
-									<Box minW="0">
-										<DiffCodeBlock diff={finding.fixSuggestion ?? ''} />
-									</Box>
-								) : null}
-							</Grid>
-						</Card.Body>
-					</Card.Root>
-				)
-			})}
+			{review.findings.map((finding) => (
+				<EditableFindingCard
+					finding={finding}
+					key={finding.id}
+					onPublishFinding={onPublishFinding}
+					publishing={publishingFindingIds?.has(finding.id) ?? false}
+				/>
+			))}
 		</Stack>
+	)
+}
+
+const piReviewFrames = [
+	'[=     ]',
+	'[==    ]',
+	'[ ===  ]',
+	'[  === ]',
+	'[    ==]',
+	'[     =]',
+	'[    ==]',
+	'[  === ]',
+]
+
+function PiReviewProgress({ message }: { message?: string }) {
+	const [frameIndex, setFrameIndex] = useState(0)
+
+	useEffect(() => {
+		const interval = window.setInterval(() => {
+			setFrameIndex((current) => (current + 1) % piReviewFrames.length)
+		}, 180)
+
+		return () => window.clearInterval(interval)
+	}, [])
+
+	return (
+		<Stack bg="gray.2" borderRadius="l2" gap="3" p="4" textAlign="left">
+			<HStack gap="3">
+				<Box color="cyan.11" fontFamily="mono" textStyle="sm">
+					{piReviewFrames[frameIndex]}
+				</Box>
+				<Box fontWeight="semibold">Pi is reviewing this PR</Box>
+			</HStack>
+			<Box color="fg.muted" textStyle="sm">
+				{message || 'This can take a minute for larger diffs.'}
+			</Box>
+		</Stack>
+	)
+}
+
+function EditableFindingCard({
+	finding,
+	onPublishFinding,
+	publishing,
+}: {
+	finding: PiReviewFinding
+	onPublishFinding?: (finding: PiReviewFinding) => void
+	publishing: boolean
+}) {
+	const [commentBody, setCommentBody] = useState(finding.suggestedCommentBody || finding.body)
+	const canPublish = Boolean(finding.filePath && finding.lineStart && commentBody.trim())
+	const hasFix = Boolean(finding.fixSuggestion)
+	const publishableFinding = {
+		...finding,
+		suggestedCommentBody: commentBody.trim(),
+	}
+
+	return (
+		<Card.Root variant="outline">
+			<Card.Body p="4">
+				<Grid
+					gridTemplateColumns={
+						hasFix ? { base: '1fr', xl: 'minmax(0, 0.9fr) minmax(0, 1.1fr)' } : '1fr'
+					}
+					gap="5"
+				>
+					<Stack gap="3" minW="0">
+						<HStack justify="space-between" gap="3">
+							<Badge colorPalette={severityColorPalette(finding.severity)}>
+								{finding.severity}
+							</Badge>
+							<Button
+								disabled={!canPublish}
+								loading={publishing}
+								onClick={() => onPublishFinding?.(publishableFinding)}
+								size="xs"
+								variant="outline"
+							>
+								Publish comment
+							</Button>
+						</HStack>
+						<Box fontWeight="semibold">{finding.title}</Box>
+						<MarkdownContent>{finding.body}</MarkdownContent>
+						<Stack gap="2">
+							<Box color="fg.muted" fontWeight="semibold" textStyle="xs">
+								PR comment
+							</Box>
+							<Textarea
+								minH="8rem"
+								onChange={(event) => setCommentBody(event.target.value)}
+								placeholder="Edit the comment before publishing..."
+								value={commentBody}
+								variant="surface"
+							/>
+						</Stack>
+						<HStack color="fg.muted" justify="space-between" textStyle="xs">
+							<Box color="cyan.11">
+								{finding.filePath}
+								{finding.lineStart ? `:${finding.lineStart}` : ''}
+							</Box>
+							<Box>{Math.round(finding.confidence * 100)}% confidence</Box>
+						</HStack>
+					</Stack>
+					{hasFix ? (
+						<Box minW="0">
+							<DiffCodeBlock diff={finding.fixSuggestion ?? ''} />
+						</Box>
+					) : null}
+				</Grid>
+			</Card.Body>
+		</Card.Root>
 	)
 }
 

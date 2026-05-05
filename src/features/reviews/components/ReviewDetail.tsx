@@ -37,12 +37,19 @@ export function ReviewDetail({
 	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null)
 	const [generationState, setGenerationState] = useState<AsyncState>('idle')
 	const [generationError, setGenerationError] = useState('')
+	const [generationMessage, setGenerationMessage] = useState('')
 	const [publishError, setPublishError] = useState('')
 	const [publishingAll, setPublishingAll] = useState(false)
 	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set())
 	const [generationJobId, setGenerationJobId] = useState<string | null>(null)
+	const [diff, setDiff] = useState('')
+	const [diffState, setDiffState] = useState<AsyncState>('idle')
+	const [diffError, setDiffError] = useState('')
 
 	useEffect(() => {
+		setDiff('')
+		setDiffState('idle')
+		setDiffError('')
 		if (!detail) {
 			setGeneratedReview(null)
 			setGenerationJobId(null)
@@ -122,6 +129,38 @@ export function ReviewDetail({
 	}
 
 	useEffect(() => {
+		if (!detail) {
+			return
+		}
+
+		let cancelled = false
+		setDiffState('loading')
+		setDiffError('')
+		appRpc.request
+			.getGitHubPullRequestDiff({
+				headSha: detail.headSha,
+				pullRequestNumber: detail.pullRequestNumber,
+				repo: detail.repo,
+			})
+			.then((result) => {
+				if (!cancelled) {
+					setDiff(result.diff)
+					setDiffState('idle')
+				}
+			})
+			.catch((error: unknown) => {
+				if (!cancelled) {
+					setDiffError(getErrorMessage(error))
+					setDiffState('error')
+				}
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [detail])
+
+	useEffect(() => {
 		if (!generationJobId) {
 			return
 		}
@@ -133,6 +172,8 @@ export function ReviewDetail({
 				if (cancelled || !job) {
 					return
 				}
+
+				setGenerationMessage(job.statusMessage ?? '')
 
 				if (job.status === 'completed' && job.review) {
 					setGeneratedReview(job.review)
@@ -161,6 +202,32 @@ export function ReviewDetail({
 		}
 	}, [generationJobId, setSummary])
 
+	const loadDiff = async () => {
+		if (!detail) {
+			return ''
+		}
+		if (diff) {
+			return diff
+		}
+
+		setDiffState('loading')
+		setDiffError('')
+		try {
+			const result = await appRpc.request.getGitHubPullRequestDiff({
+				headSha: detail.headSha,
+				pullRequestNumber: detail.pullRequestNumber,
+				repo: detail.repo,
+			})
+			setDiff(result.diff)
+			setDiffState('idle')
+			return result.diff
+		} catch (error) {
+			setDiffError(getErrorMessage(error))
+			setDiffState('error')
+			throw error
+		}
+	}
+
 	const handleGenerateWithPi = async () => {
 		if (!detail) {
 			setGenerationError('Load PR details before generating a review.')
@@ -170,9 +237,14 @@ export function ReviewDetail({
 
 		setGenerationState('loading')
 		setGenerationError('')
+		setGenerationMessage('Loading the latest PR diff before starting Pi...')
 
 		try {
-			const job = await appRpc.request.startPiReviewGeneration({ pullRequest: detail })
+			const loadedDiff = await loadDiff()
+			setGenerationMessage('Starting Pi review generation...')
+			const job = await appRpc.request.startPiReviewGeneration({
+				pullRequest: { ...detail, diff: loadedDiff },
+			})
 			setGenerationJobId(job.id)
 			if (job.status === 'completed' && job.review) {
 				setGeneratedReview(job.review)
@@ -180,6 +252,7 @@ export function ReviewDetail({
 				setGenerationState('idle')
 			}
 		} catch (error) {
+			setGenerationMessage('')
 			setGenerationError(getErrorMessage(error))
 			setGenerationState('error')
 		}
@@ -295,13 +368,18 @@ export function ReviewDetail({
 									colorMode={colorMode}
 									detail={detail}
 									detailState={detailState}
+									diff={diff}
+									diffError={diffError}
+									diffState={diffState}
 									inlineComments={generatedReview?.inlineComments ?? []}
+									onLoadDiff={loadDiff}
 								/>
 							)}
 							{activeTab === 'summary' && <SummaryTab detail={detail} />}
 							{activeTab === 'review' && (
 								<ReviewTab
 									generationError={generationError}
+									generationMessage={generationMessage}
 									generationState={generationState}
 									publishError={publishError}
 									generatedReview={generatedReview}
@@ -319,6 +397,7 @@ export function ReviewDetail({
 
 function ReviewTab({
 	generationError,
+	generationMessage,
 	generationState,
 	generatedReview,
 	publishError,
@@ -326,6 +405,7 @@ function ReviewTab({
 	publishingFindingIds,
 }: {
 	generationError: string
+	generationMessage: string
 	generationState: AsyncState
 	generatedReview: PiGeneratedReview | null
 	publishError: string
@@ -343,6 +423,7 @@ function ReviewTab({
 			>
 				<GeneratedFindings
 					error={generationError || publishError}
+					generationMessage={generationMessage}
 					generationState={generationState}
 					onPublishFinding={onPublishFinding}
 					publishingFindingIds={publishingFindingIds}
@@ -357,17 +438,30 @@ function CodeTab({
 	colorMode,
 	detail,
 	detailState,
+	diff,
+	diffError,
+	diffState,
 	inlineComments,
+	onLoadDiff,
 }: {
 	colorMode: ColorMode
 	detail: GitHubPullRequestDetails | null
 	detailState: AsyncState
+	diff: string
+	diffError: string
+	diffState: AsyncState
 	inlineComments: PiInlineComment[]
+	onLoadDiff: () => Promise<string>
 }) {
 	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
 
 	if (detailState === 'loading') {
-		return <StatusCard title="Loading diff from GitHub" body="Calling gh pr diff for this PR..." />
+		return (
+			<StatusCard
+				title="Loading pull request metadata"
+				body="Loading PR summary and file list..."
+			/>
+		)
 	}
 
 	return (
@@ -413,12 +507,27 @@ function CodeTab({
 				minW="0"
 				overflow="auto"
 			>
-				<DiffViewer
-					colorMode={colorMode}
-					inlineComments={inlineComments}
-					patch={detail?.diff ?? ''}
-					selectedFilePath={selectedFilePath}
-				/>
+				{diff ? (
+					<DiffViewer
+						colorMode={colorMode}
+						inlineComments={inlineComments}
+						patch={diff}
+						selectedFilePath={selectedFilePath}
+					/>
+				) : (
+					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
+						<StatusCard
+							tone={diffError ? 'red' : 'gray'}
+							title={diffError ? 'Could not load diff' : 'Loading diff'}
+							body={diffError || 'Loading the patch in the background...'}
+						/>
+						{diffError ? (
+							<Button loading={diffState === 'loading'} onClick={() => void onLoadDiff()}>
+								Retry loading diff
+							</Button>
+						) : null}
+					</Stack>
+				)}
 			</Box>
 		</Grid>
 	)

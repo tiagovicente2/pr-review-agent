@@ -4,7 +4,12 @@ import type {
 	GitHubPullRequestDetails,
 	GitHubReviewRequest,
 } from '@/shared/github'
-import { getCachedPullRequestDetails, saveCachedPullRequestDetails } from './pull-request-cache'
+import {
+	getCachedPullRequestDetails,
+	getCachedPullRequestDiff,
+	saveCachedPullRequestDetails,
+	saveCachedPullRequestDiff,
+} from './pull-request-cache'
 
 type CommandResult = {
 	exitCode: number
@@ -247,17 +252,6 @@ export async function getGitHubPullRequestDetails(params: {
 	])
 	assertSuccess(view, 'fetch pull request details')
 
-	const diff = await runGh([
-		'pr',
-		'diff',
-		String(params.pullRequestNumber),
-		'--repo',
-		params.repo,
-		'--patch',
-		'--color=never',
-	])
-	assertSuccess(diff, 'fetch pull request diff')
-
 	const parsed = JSON.parse(view.stdout) as {
 		number: number
 		title: string
@@ -303,9 +297,33 @@ export async function getGitHubPullRequestDetails(params: {
 			additions: file.additions ?? 0,
 			deletions: file.deletions ?? 0,
 		})),
-		diff: diff.stdout,
+		diff: '',
 	}
 
 	saveCachedPullRequestDetails(details)
 	return details
+}
+
+export async function getGitHubPullRequestDiff(params: {
+	repo: string
+	pullRequestNumber: number
+	headSha: string
+}): Promise<{ diff: string }> {
+	const cached = getCachedPullRequestDiff(params)
+	if (cached !== null) {
+		return { diff: cached }
+	}
+
+	const diff = await runGh([
+		'pr',
+		'diff',
+		String(params.pullRequestNumber),
+		'--repo',
+		params.repo,
+		'--patch',
+		'--color=never',
+	])
+	assertSuccess(diff, 'fetch pull request diff')
+	saveCachedPullRequestDiff({ ...params, diff: diff.stdout })
+	return { diff: diff.stdout }
 }

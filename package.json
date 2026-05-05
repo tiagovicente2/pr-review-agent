@@ -9,13 +9,13 @@
 		"panda:css": "panda cssgen",
 		"panda:build": "panda codegen && panda cssgen",
 		"panda:watch": "panda cssgen --watch",
-		"start": "bun run panda:build && vite build && electrobun dev",
-		"dev": "bun run panda:build && electrobun dev --watch",
+		"start": "bun run panda:build && vite build && bun scripts/run-electrobun.ts dev",
+		"dev": "bun run panda:build && bun scripts/run-electrobun.ts dev --watch",
 		"dev:hmr": "concurrently \"bun run panda:watch\" \"bun run hmr\" \"bun run start\"",
 		"hmr": "vite --port 5173",
 		"build": "bun run panda:build && vite build",
-		"build:app": "bun run panda:build && vite build && electrobun build",
-		"build:canary": "bun run panda:build && vite build && electrobun build --env=canary",
+		"build:app": "bun run panda:build && vite build && bun scripts/run-electrobun.ts build",
+		"build:canary": "bun run panda:build && vite build && bun scripts/run-electrobun.ts build --env=canary",
 		"typecheck": "bun run panda:build && tsc --noEmit",
 		"lint": "biome lint .",
 		"format": "biome format --write .",
@@ -24,9 +24,13 @@
 	"dependencies": {
 		"@ark-ui/react": "^5.36.2",
 		"@pierre/diffs": "^1.1.20",
+		"@pierre/trees": "^1.0.0-beta.3",
 		"electrobun": "1.18.1",
 		"react": "^18.3.1",
-		"react-dom": "^18.3.1"
+		"react-dom": "^18.3.1",
+		"react-markdown": "^10.1.0",
+		"rehype-raw": "^7.0.0",
+		"remark-gfm": "^4.0.1"
 	},
 	"devDependencies": {
 		"@biomejs/biome": "^2.4.14",

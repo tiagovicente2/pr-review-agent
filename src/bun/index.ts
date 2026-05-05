@@ -6,7 +6,11 @@ import {
 	listGitHubReviewRequests,
 	startGitHubLogin,
 } from "./services/github";
+import { openExternalUrl } from "./services/open-external";
+import { publishPiReviewComment, publishPiReviewComments } from "./services/pi-publish";
 import { generateReviewWithPi } from "./services/pi-review";
+import { getSavedGeneratedReview } from "./services/review-store";
+import { getAppSettings, saveAppSettings } from "./services/settings";
 
 const DEV_SERVER_PORT = 5173;
 const DEV_SERVER_URL = `http://localhost:${DEV_SERVER_PORT}`;
@@ -31,11 +35,17 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 	maxRequestTime: 5 * 60 * 1000,
 	handlers: {
 		requests: {
+			getAppSettings,
+			saveAppSettings,
 			getGitHubAuthStatus,
 			startGitHubLogin,
 			listGitHubReviewRequests,
 			getGitHubPullRequestDetails,
 			generateReviewWithPi,
+			getSavedPiReview: getSavedGeneratedReview,
+			openExternalUrl,
+			publishPiReviewComment,
+			publishPiReviewComments,
 		},
 		messages: {},
 	},
@@ -53,6 +63,7 @@ const mainWindow = new BrowserWindow({
 		x: 120,
 		y: 80,
 	},
+	titleBarStyle: "hidden",
 });
 
 console.log("PR Review Agent started", mainWindow.id);

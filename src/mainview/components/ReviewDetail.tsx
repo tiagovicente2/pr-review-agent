@@ -1,0 +1,389 @@
+import { useEffect, useState } from "react";
+import { Box, Grid, HStack, Stack } from "styled-system/jsx";
+import { Badge, Button, Card } from "@/components/ui";
+import type { GitHubPullRequestDetails, GitHubReviewRequest } from "../../shared/github";
+import type { PiGeneratedReview, PiInlineComment, PiReviewFinding } from "../../shared/review";
+import { appRpc } from "../rpc";
+import type { AsyncState, ColorMode } from "../types";
+import { formatDate, getErrorMessage } from "../utils";
+import { ChangedFilesTree } from "./changed-files-tree/ChangedFilesTree";
+import { StatusCard, TabButton } from "./common";
+import { DiffViewer } from "./diff-viewer/DiffViewer";
+import { GeneratedFindings } from "./GeneratedFindings";
+import { MarkdownContent } from "./markdown/MarkdownContent";
+
+type TabId = "code" | "summary" | "review";
+
+export function ReviewDetail({
+	colorMode,
+	detail,
+	detailError,
+	detailState,
+	review,
+	setSummary,
+}: {
+	colorMode: ColorMode;
+	detail: GitHubPullRequestDetails | null;
+	detailError: string;
+	detailState: AsyncState;
+	review: GitHubReviewRequest | null;
+	setSummary: (summary: string) => void;
+}) {
+	const [activeTab, setActiveTab] = useState<TabId>("code");
+	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null);
+	const [generationState, setGenerationState] = useState<AsyncState>("idle");
+	const [generationError, setGenerationError] = useState("");
+	const [publishError, setPublishError] = useState("");
+	const [publishingAll, setPublishingAll] = useState(false);
+	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set());
+
+	useEffect(() => {
+		if (!detail) {
+			setGeneratedReview(null);
+			return;
+		}
+
+		let cancelled = false;
+		appRpc.request
+			.getSavedPiReview({
+				headSha: detail.headSha,
+				pullRequestNumber: detail.pullRequestNumber,
+				repo: detail.repo,
+			})
+			.then((savedReview) => {
+				if (!cancelled) {
+					setGeneratedReview(savedReview);
+				}
+			})
+			.catch(() => {
+				if (!cancelled) {
+					setGeneratedReview(null);
+				}
+			});
+
+		return () => {
+			cancelled = true;
+		};
+	}, [detail]);
+
+	const handleOpenOnGitHub = async () => {
+		if (review) {
+			await appRpc.request.openExternalUrl({ url: review.url });
+		}
+	};
+
+	const handlePublishFinding = async (finding: PiReviewFinding) => {
+		if (!detail) {
+			return;
+		}
+		setPublishError("");
+		setPublishingFindingIds((current) => new Set(current).add(finding.id));
+		try {
+			await appRpc.request.publishPiReviewComment({ finding, pullRequest: detail });
+		} catch (error) {
+			setPublishError(getErrorMessage(error));
+		} finally {
+			setPublishingFindingIds((current) => {
+				const next = new Set(current);
+				next.delete(finding.id);
+				return next;
+			});
+		}
+	};
+
+	const handlePublishAll = async (findings: PiReviewFinding[]) => {
+		if (!detail) {
+			return;
+		}
+		setPublishError("");
+		setPublishingAll(true);
+		try {
+			await appRpc.request.publishPiReviewComments({ findings, pullRequest: detail });
+		} catch (error) {
+			setPublishError(getErrorMessage(error));
+		} finally {
+			setPublishingAll(false);
+		}
+	};
+
+	const handleGenerateWithPi = async () => {
+		if (!detail) {
+			setGenerationError("Load PR details before generating a review.");
+			setGenerationState("error");
+			return;
+		}
+
+		setGenerationState("loading");
+		setGenerationError("");
+
+		try {
+			const reviewDraft = await appRpc.request.generateReviewWithPi({ pullRequest: detail });
+			setGeneratedReview(reviewDraft);
+			setSummary(reviewDraft.publishableBody || reviewDraft.summary);
+			setGenerationState("idle");
+		} catch (error) {
+			setGenerationError(getErrorMessage(error));
+			setGenerationState("error");
+		}
+	};
+
+	if (!review) {
+		return (
+			<Grid h="100%" minH="0" overflowY="auto" placeItems="center" p="8">
+				<StatusCard
+					title="Select a pull request"
+					body="Your real GitHub review requests will appear in the inbox."
+				/>
+			</Grid>
+		);
+	}
+
+	return (
+		<Box
+			display="grid"
+			gridTemplateRows="auto minmax(0, 1fr)"
+			h={{ base: "auto", lg: "100%" }}
+			minH="0"
+			minW="0"
+			overflow="hidden"
+		>
+			<Box bg="gray.1" px="8" py="3">
+				<Grid gridTemplateColumns="minmax(0, 1fr) auto" alignItems="center" gap="4">
+					<Stack gap="1" minW="0">
+						<HStack flexWrap="wrap" gap="2" color="fg.muted" textStyle="sm">
+							<Badge colorPalette="cyan">requested review</Badge>
+							<Badge colorPalette="gray" variant="surface">
+								{detailState === "loading" ? "loading" : review.state}
+							</Badge>
+							<Box>{detail?.changedFilesCount ?? "—"} files</Box>
+							<Box color="green.11">+{detail?.additions ?? "—"}</Box>
+							<Box color="red.11">-{detail?.deletions ?? "—"}</Box>
+							{detail?.headSha ? <Box>head {detail.headSha.slice(0, 7)}</Box> : null}
+						</HStack>
+						<Box as="h2" textStyle="xl" fontWeight="bold" letterSpacing="-0.03em" truncate>
+							#{review.pullRequestNumber} {review.title}
+						</Box>
+						<Box color="fg.muted" textStyle="sm" truncate>
+							{review.repo} by @{review.author} · updated {formatDate(review.updatedAt)}
+						</Box>
+					</Stack>
+
+					<Button onClick={handleOpenOnGitHub} size="sm">
+						Open on GitHub
+					</Button>
+				</Grid>
+				{detailError ? (
+					<Box mt="4">
+						<StatusCard tone="red" title="Could not load PR details" body={detailError} />
+					</Box>
+				) : null}
+			</Box>
+
+			<Grid
+				gridTemplateColumns="minmax(0, 1fr)"
+				gap="4"
+				minH="0"
+				minW="0"
+				overflow="hidden"
+				px="8"
+				pb="8"
+				pt="4"
+			>
+				<Stack gap="5" minH="0" minW="0">
+					<Card.Root h="100%" minH="0" overflow="hidden">
+						<Card.Header>
+							<HStack justify="space-between" gap="3" w="100%">
+								<HStack gap="0.5" p="0.5" bg="gray.2" borderRadius="l1" width="fit-content">
+									<TabButton active={activeTab === "code"} onClick={() => setActiveTab("code")}>
+										Code
+									</TabButton>
+									<TabButton
+										active={activeTab === "summary"}
+										onClick={() => setActiveTab("summary")}
+									>
+										Summary
+									</TabButton>
+									<TabButton active={activeTab === "review"} onClick={() => setActiveTab("review")}>
+										Review
+									</TabButton>
+								</HStack>
+								{activeTab === "review" ? (
+									<HStack gap="2">
+										{generatedReview?.findings.length ? (
+											<Button
+												loading={publishingAll}
+												onClick={() => handlePublishAll(generatedReview.findings)}
+												size="sm"
+											>
+												Publish all comments
+											</Button>
+										) : null}
+										<Button
+											disabled={!detail || detailState === "loading"}
+											loading={generationState === "loading"}
+											onClick={handleGenerateWithPi}
+											size="sm"
+											variant={generatedReview ? "outline" : "solid"}
+										>
+											{generatedReview ? "Regenerate with Pi" : "Generate with Pi"}
+										</Button>
+									</HStack>
+								) : null}
+							</HStack>
+						</Card.Header>
+						<Card.Body minH="0" overflow="hidden">
+							{activeTab === "code" && (
+								<CodeTab
+									colorMode={colorMode}
+									detail={detail}
+									detailState={detailState}
+									inlineComments={generatedReview?.inlineComments ?? []}
+								/>
+							)}
+							{activeTab === "summary" && <SummaryTab detail={detail} />}
+							{activeTab === "review" && (
+								<ReviewTab
+									generationError={generationError}
+									generationState={generationState}
+									publishError={publishError}
+									generatedReview={generatedReview}
+									onPublishFinding={handlePublishFinding}
+									publishingFindingIds={publishingFindingIds}
+								/>
+							)}
+						</Card.Body>
+					</Card.Root>
+				</Stack>
+			</Grid>
+		</Box>
+	);
+}
+
+function ReviewTab({
+	generationError,
+	generationState,
+	generatedReview,
+	publishError,
+	onPublishFinding,
+	publishingFindingIds,
+}: {
+	generationError: string;
+	generationState: AsyncState;
+	generatedReview: PiGeneratedReview | null;
+	publishError: string;
+	onPublishFinding: (finding: PiReviewFinding) => void;
+	publishingFindingIds: Set<string>;
+}) {
+	return (
+		<Stack gap="4" h="100%" minH="0" overflow="hidden">
+			<Box
+				h="100%"
+				minH="0"
+				overflowY="auto"
+				textAlign={generatedReview ? "left" : "center"}
+				w="100%"
+			>
+				<GeneratedFindings
+					error={generationError || publishError}
+					generationState={generationState}
+					onPublishFinding={onPublishFinding}
+					publishingFindingIds={publishingFindingIds}
+					review={generatedReview}
+				/>
+			</Box>
+		</Stack>
+	);
+}
+
+function CodeTab({
+	colorMode,
+	detail,
+	detailState,
+	inlineComments,
+}: {
+	colorMode: ColorMode;
+	detail: GitHubPullRequestDetails | null;
+	detailState: AsyncState;
+	inlineComments: PiInlineComment[];
+}) {
+	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+
+	if (detailState === "loading") {
+		return <StatusCard title="Loading diff from GitHub" body="Calling gh pr diff for this PR..." />;
+	}
+
+	return (
+		<Grid
+			gridTemplateColumns={{ base: "minmax(0, 1fr)", xl: "24rem minmax(0, 1fr)" }}
+			gap="5"
+			h="100%"
+			minH="0"
+			minW="0"
+			overflow="hidden"
+		>
+			<Card.Root
+				h="100%"
+				maxH={{ base: "24rem", xl: "100%" }}
+				minH="0"
+				overflow="hidden"
+				variant="outline"
+			>
+				<Card.Header>
+					<Card.Title>Changed files</Card.Title>
+					<Card.Description truncate>
+						{selectedFilePath
+							? `Focused: ${selectedFilePath}`
+							: `${detail?.files.length ?? 0} edited files`}
+					</Card.Description>
+				</Card.Header>
+				<Card.Body minH="0" overflow="hidden">
+					{detail ? (
+						<ChangedFilesTree
+							files={detail.files}
+							onSelectFile={setSelectedFilePath}
+							selectedFilePath={selectedFilePath}
+						/>
+					) : null}
+				</Card.Body>
+			</Card.Root>
+
+			<Box
+				h="100%"
+				maxH={{ base: "70vh", xl: "100%" }}
+				maxW="100%"
+				minH="0"
+				minW="0"
+				overflow="auto"
+			>
+				<DiffViewer
+					colorMode={colorMode}
+					inlineComments={inlineComments}
+					patch={detail?.diff ?? ""}
+					selectedFilePath={selectedFilePath}
+				/>
+			</Box>
+		</Grid>
+	);
+}
+
+function SummaryTab({ detail }: { detail: GitHubPullRequestDetails | null }) {
+	return (
+		<Stack h="100%" maxH={{ base: "70vh", xl: "calc(100vh - 18rem)" }} minH="0" overflow="hidden">
+			<Card.Root h="100%" minH="0" overflow="hidden" variant="outline">
+				<Card.Header>
+					<Card.Title>Pull request summary</Card.Title>
+					<Card.Description>
+						{detail
+							? `${detail.headRefName} → ${detail.baseRefName} · ${detail.changedFilesCount} files changed`
+							: "Load a pull request to see its summary."}
+					</Card.Description>
+				</Card.Header>
+				<Card.Body minH="0" overflowY="auto">
+					<MarkdownContent>
+						{detail?.body || "This pull request does not include a description."}
+					</MarkdownContent>
+				</Card.Body>
+			</Card.Root>
+		</Stack>
+	);
+}

@@ -1,9 +1,9 @@
 import { parsePatchFiles } from "@pierre/diffs";
 import { type DiffLineAnnotation, FileDiff, type FileDiffMetadata } from "@pierre/diffs/react";
-import { useMemo } from "react";
+import { useEffect, useMemo, useRef, useState } from "react";
 import { css } from "styled-system/css";
-import { Box, Stack } from "styled-system/jsx";
-import { Badge } from "@/components/ui";
+import { Box, HStack, Stack } from "styled-system/jsx";
+import { Badge, Button } from "@/components/ui";
 import type { PiInlineComment } from "../../../shared/review";
 
 type DiffAnnotation = {
@@ -18,10 +18,51 @@ type DiffViewerProps = {
 	colorMode: "light" | "dark";
 	inlineComments?: PiInlineComment[];
 	patch: string;
+	selectedFilePath?: string | null;
 };
 
-export function DiffViewer({ colorMode, inlineComments = [], patch }: DiffViewerProps) {
+export function DiffViewer({
+	colorMode,
+	inlineComments = [],
+	patch,
+	selectedFilePath,
+}: DiffViewerProps) {
 	const parsedPatch = useMemo(() => parsePatch(patch), [patch]);
+	const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(() => new Set());
+	const fileRefs = useRef(new Map<string, HTMLDivElement>());
+
+	useEffect(() => {
+		if (!selectedFilePath) {
+			return;
+		}
+
+		let selectedKey: string | null = null;
+		setCollapsedFiles((current) => {
+			const next = new Set(current);
+			for (const file of parsedPatch.files) {
+				if (file.name === selectedFilePath || file.prevName === selectedFilePath) {
+					selectedKey = getFileDiffKey(file);
+					next.delete(selectedKey);
+				}
+			}
+			return next;
+		});
+
+		requestAnimationFrame(() => {
+			if (!selectedKey) {
+				return;
+			}
+
+			const node = fileRefs.current.get(selectedKey);
+			const scrollParent = node ? getScrollableParent(node) : null;
+			if (node && scrollParent) {
+				scrollParent.scrollTo({
+					behavior: "smooth",
+					top: node.offsetTop - scrollParent.offsetTop,
+				});
+			}
+		});
+	}, [parsedPatch.files, selectedFilePath]);
 	const options = useMemo(
 		() =>
 			({
@@ -56,19 +97,112 @@ export function DiffViewer({ colorMode, inlineComments = [], patch }: DiffViewer
 
 	return (
 		<Stack gap="4">
-			{parsedPatch.files.map((fileDiff) => (
-				<FileDiff
-					className={diffClassName}
-					disableWorkerPool
-					fileDiff={fileDiff}
-					key={getFileDiffKey(fileDiff)}
-					lineAnnotations={getLineAnnotations(fileDiff, inlineComments)}
-					options={options}
-					renderAnnotation={renderAnnotation}
-				/>
-			))}
+			{parsedPatch.files.map((fileDiff) => {
+				const fileKey = getFileDiffKey(fileDiff);
+				const collapsed = collapsedFiles.has(fileKey);
+
+				return (
+					<Box
+						className={diffClassName}
+						key={fileKey}
+						ref={(node) => {
+							if (node) {
+								fileRefs.current.set(fileKey, node);
+							} else {
+								fileRefs.current.delete(fileKey);
+							}
+						}}
+					>
+						<DiffFileHeader
+							collapsed={collapsed}
+							fileDiff={fileDiff}
+							onToggle={() =>
+								setCollapsedFiles((current) => {
+									const next = new Set(current);
+									if (next.has(fileKey)) {
+										next.delete(fileKey);
+									} else {
+										next.add(fileKey);
+									}
+									return next;
+								})
+							}
+						/>
+						{collapsed ? null : (
+							<FileDiff
+								disableWorkerPool
+								fileDiff={fileDiff}
+								lineAnnotations={getLineAnnotations(fileDiff, inlineComments)}
+								options={{ ...options, disableFileHeader: true }}
+								renderAnnotation={renderAnnotation}
+							/>
+						)}
+					</Box>
+				);
+			})}
 		</Stack>
 	);
+}
+
+function DiffFileHeader({
+	collapsed,
+	fileDiff,
+	onToggle,
+}: {
+	collapsed: boolean;
+	fileDiff: FileDiffMetadata;
+	onToggle: () => void;
+}) {
+	const additions = fileDiff.hunks.reduce((total, hunk) => total + hunk.additionLines, 0);
+	const deletions = fileDiff.hunks.reduce((total, hunk) => total + hunk.deletionLines, 0);
+
+	return (
+		<HStack
+			bg="gray.2"
+			borderBottomWidth={collapsed ? "0" : "1px"}
+			gap="3"
+			justify="space-between"
+			px="3"
+			py="2"
+		>
+			<HStack minW="0" gap="2">
+				<Button size="xs" variant="plain" onClick={onToggle}>
+					{collapsed ? "▸" : "▾"}
+				</Button>
+				<Stack gap="0" minW="0">
+					<Box fontFamily="mono" fontSize="sm" fontWeight="medium" truncate>
+						{fileDiff.name}
+					</Box>
+					{fileDiff.prevName && fileDiff.prevName !== fileDiff.name ? (
+						<Box color="fg.muted" fontFamily="mono" fontSize="xs" truncate>
+							from {fileDiff.prevName}
+						</Box>
+					) : null}
+				</Stack>
+			</HStack>
+			<HStack flexShrink="0" gap="2" fontFamily="mono" fontSize="xs">
+				<Badge colorPalette="gray" variant="surface">
+					{fileDiff.type}
+				</Badge>
+				<Box color="green.11">+{additions}</Box>
+				<Box color="red.11">-{deletions}</Box>
+			</HStack>
+		</HStack>
+	);
+}
+
+function getScrollableParent(node: HTMLElement) {
+	let parent = node.parentElement;
+	while (parent) {
+		const style = window.getComputedStyle(parent);
+		const canScrollY = /(auto|scroll)/.test(style.overflowY);
+		if (canScrollY && parent.scrollHeight > parent.clientHeight) {
+			return parent;
+		}
+		parent = parent.parentElement;
+	}
+
+	return null;
 }
 
 function getFileDiffKey(fileDiff: FileDiffMetadata) {

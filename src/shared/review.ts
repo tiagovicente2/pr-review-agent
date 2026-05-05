@@ -39,3 +39,24 @@ export type PiGeneratedReview = {
 export type GeneratePiReviewParams = {
 	pullRequest: GitHubPullRequestDetails;
 };
+
+export type GetSavedPiReviewParams = {
+	repo: string;
+	pullRequestNumber: number;
+	headSha: string;
+};
+
+export type PublishPiReviewCommentParams = {
+	pullRequest: GitHubPullRequestDetails;
+	finding: PiReviewFinding;
+};
+
+export type PublishPiReviewCommentsParams = {
+	pullRequest: GitHubPullRequestDetails;
+	findings: PiReviewFinding[];
+};
+
+export type PublishPiReviewCommentResult = {
+	ok: true;
+	output: string;
+};

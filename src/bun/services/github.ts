@@ -237,7 +237,7 @@ export async function getGitHubPullRequestDetails(params: {
 		"--repo",
 		params.repo,
 		"--json",
-		"title,author,url,body,state,isDraft,headRefOid,headRefName,baseRefName,changedFiles,additions,deletions,files,number",
+		"title,author,url,body,state,isDraft,headRefOid,headRefName,baseRefName,changedFiles,additions,deletions,files,number,reviewDecision,reviews",
 	]);
 	assertSuccess(view, "fetch pull request details");
 
@@ -267,6 +267,8 @@ export async function getGitHubPullRequestDetails(params: {
 		additions?: number;
 		deletions?: number;
 		files?: Array<{ path?: string; additions?: number; deletions?: number }>;
+		reviewDecision?: string;
+		reviews?: Array<{ author?: unknown; state?: string; submittedAt?: string }>;
 	};
 
 	return {
@@ -284,6 +286,12 @@ export async function getGitHubPullRequestDetails(params: {
 		changedFilesCount: parsed.changedFiles ?? parsed.files?.length ?? 0,
 		additions: parsed.additions ?? 0,
 		deletions: parsed.deletions ?? 0,
+		reviewDecision: parsed.reviewDecision,
+		reviews: (parsed.reviews ?? []).map((review) => ({
+			author: getAuthorLogin(review.author),
+			state: review.state ?? "UNKNOWN",
+			submittedAt: review.submittedAt,
+		})),
 		files: (parsed.files ?? []).map((file) => ({
 			path: file.path ?? "unknown",
 			additions: file.additions ?? 0,

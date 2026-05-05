@@ -24,6 +24,12 @@ export type GitHubReviewRequest = {
 	isDraft: boolean;
 };
 
+export type GitHubPullRequestReview = {
+	author: string;
+	state: string;
+	submittedAt?: string;
+};
+
 export type GitHubPullRequestDetails = {
 	repo: string;
 	pullRequestNumber: number;
@@ -39,6 +45,8 @@ export type GitHubPullRequestDetails = {
 	changedFilesCount: number;
 	additions: number;
 	deletions: number;
+	reviewDecision?: string;
+	reviews: GitHubPullRequestReview[];
 	files: Array<{
 		path: string;
 		additions: number;

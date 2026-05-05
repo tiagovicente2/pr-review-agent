@@ -3,7 +3,7 @@ import type {
 	PublishPiReviewCommentParams,
 	PublishPiReviewCommentResult,
 	PublishPiReviewCommentsParams,
-} from "../../shared/review";
+} from "@/shared/review";
 
 const PI_PUBLISH_TIMEOUT_MS = 5 * 60 * 1000;
 

@@ -1,6 +1,6 @@
 import { existsSync, mkdirSync, readFileSync, writeFileSync } from "node:fs";
 import { dirname, join } from "node:path";
-import type { AppSettings, SaveAppSettingsParams } from "../../shared/settings";
+import type { AppSettings, SaveAppSettingsParams } from "@/shared/settings";
 
 const settingsPath = getSettingsPath();
 const instructionsPath = getInstructionsPath();

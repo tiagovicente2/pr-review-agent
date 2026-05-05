@@ -1,8 +1,4 @@
-import type {
-	GeneratePiReviewParams,
-	PiGeneratedReview,
-	PiReviewFinding,
-} from "../../shared/review";
+import type { GeneratePiReviewParams, PiGeneratedReview, PiReviewFinding } from "@/shared/review";
 import { saveGeneratedReview } from "./review-store";
 import { getReviewerInstructions } from "./settings";
 

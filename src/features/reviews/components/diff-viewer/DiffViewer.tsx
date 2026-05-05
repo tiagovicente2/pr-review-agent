@@ -4,7 +4,7 @@ import { useEffect, useMemo, useRef, useState } from "react";
 import { css } from "styled-system/css";
 import { Box, HStack, Stack } from "styled-system/jsx";
 import { Badge, Button } from "@/components/ui";
-import type { PiInlineComment } from "../../../shared/review";
+import type { PiInlineComment } from "@/shared/review";
 
 type DiffAnnotation = {
 	body: string;

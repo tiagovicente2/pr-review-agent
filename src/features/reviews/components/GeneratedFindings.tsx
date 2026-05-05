@@ -1,10 +1,10 @@
 import { css } from "styled-system/css";
 import { Box, Grid, HStack, Stack } from "styled-system/jsx";
+import type { AsyncState } from "@/app/types";
+import { StatusCard } from "@/components/common";
+import { MarkdownContent } from "@/components/markdown/MarkdownContent";
 import { Badge, Button, Card } from "@/components/ui";
-import type { PiGeneratedReview, PiReviewFinding, ReviewSeverity } from "../../shared/review";
-import type { AsyncState } from "../types";
-import { StatusCard } from "./common";
-import { MarkdownContent } from "./markdown/MarkdownContent";
+import type { PiGeneratedReview, PiReviewFinding, ReviewSeverity } from "@/shared/review";
 
 export function GeneratedFindings({
 	error,

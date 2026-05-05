@@ -1,16 +1,16 @@
 import { useEffect, useState } from "react";
 import { Box, Grid, HStack, Stack } from "styled-system/jsx";
+import { appRpc } from "@/app/rpc";
+import type { AsyncState, ColorMode } from "@/app/types";
+import { formatDate, getErrorMessage } from "@/app/utils";
+import { StatusCard, TabButton } from "@/components/common";
+import { MarkdownContent } from "@/components/markdown/MarkdownContent";
 import { Badge, Button, Card } from "@/components/ui";
-import type { GitHubPullRequestDetails, GitHubReviewRequest } from "../../shared/github";
-import type { PiGeneratedReview, PiInlineComment, PiReviewFinding } from "../../shared/review";
-import { appRpc } from "../rpc";
-import type { AsyncState, ColorMode } from "../types";
-import { formatDate, getErrorMessage } from "../utils";
+import type { GitHubPullRequestDetails, GitHubReviewRequest } from "@/shared/github";
+import type { PiGeneratedReview, PiInlineComment, PiReviewFinding } from "@/shared/review";
 import { ChangedFilesTree } from "./changed-files-tree/ChangedFilesTree";
-import { StatusCard, TabButton } from "./common";
 import { DiffViewer } from "./diff-viewer/DiffViewer";
 import { GeneratedFindings } from "./GeneratedFindings";
-import { MarkdownContent } from "./markdown/MarkdownContent";
 
 type TabId = "code" | "summary" | "review";
 

@@ -1,8 +1,8 @@
 import { Box, Grid, HStack, Stack } from "styled-system/jsx";
+import type { AsyncState, ColorMode } from "@/app/types";
+import { Code } from "@/components/common";
 import { Badge, Button, Card } from "@/components/ui";
-import type { GitHubAuthStatus } from "../../shared/github";
-import type { AsyncState, ColorMode } from "../types";
-import { Code } from "./common";
+import type { GitHubAuthStatus } from "@/shared/github";
 
 export function GitHubLoginPage({
 	authState,

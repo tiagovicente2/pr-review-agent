@@ -3,7 +3,7 @@ import type {
 	GitHubLoginResult,
 	GitHubPullRequestDetails,
 	GitHubReviewRequest,
-} from "../../shared/github";
+} from "@/shared/github";
 
 type CommandResult = {
 	exitCode: number;

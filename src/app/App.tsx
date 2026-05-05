@@ -1,16 +1,16 @@
 import { useCallback, useEffect, useMemo, useState } from "react";
 import { Box, Grid } from "styled-system/jsx";
+import { TitleBar } from "@/app/title-bar/TitleBar";
+import { GitHubLoginPage } from "@/features/auth/components/GitHubLoginPage";
+import { ReviewDetail } from "@/features/reviews/components/ReviewDetail";
+import { ReviewInbox } from "@/features/reviews/components/ReviewInbox";
+import { SettingsPage } from "@/features/settings/components/SettingsPage";
 import type {
 	GitHubAuthStatus,
 	GitHubPullRequestDetails,
 	GitHubReviewRequest,
-} from "../shared/github";
-import type { AppSettings, ColorModePreference } from "../shared/settings";
-import { GitHubLoginPage } from "./components/GitHubLoginPage";
-import { ReviewDetail } from "./components/ReviewDetail";
-import { ReviewInbox } from "./components/ReviewInbox";
-import { SettingsPage } from "./components/SettingsPage";
-import { TitleBar } from "./components/title-bar/TitleBar";
+} from "@/shared/github";
+import type { AppSettings, ColorModePreference } from "@/shared/settings";
 import { appRpc } from "./rpc";
 import type { AsyncState, ColorMode } from "./types";
 import { getErrorMessage } from "./utils";

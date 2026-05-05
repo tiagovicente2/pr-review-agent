@@ -1,5 +1,5 @@
 import { BrowserView, BrowserWindow, Updater } from "electrobun/bun";
-import type { AppRPCSchema } from "../shared/rpc";
+import type { AppRPCSchema } from "@/shared/rpc";
 import {
 	getGitHubAuthStatus,
 	getGitHubPullRequestDetails,

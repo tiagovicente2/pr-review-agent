@@ -1,5 +1,5 @@
 import { Electroview } from "electrobun/view";
-import type { AppRPCSchema } from "../shared/rpc";
+import type { AppRPCSchema } from "@/shared/rpc";
 
 export const appRpc = Electroview.defineRPC<AppRPCSchema>({
 	maxRequestTime: 5 * 60 * 1000,

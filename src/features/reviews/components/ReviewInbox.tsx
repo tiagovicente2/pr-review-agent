@@ -1,10 +1,10 @@
 import { css, cx } from "styled-system/css";
 import { Box, HStack, Stack } from "styled-system/jsx";
+import type { AsyncState } from "@/app/types";
+import { formatDate } from "@/app/utils";
+import { StatusCard } from "@/components/common";
 import { Badge, Button, Card, Input } from "@/components/ui";
-import type { GitHubReviewRequest } from "../../shared/github";
-import type { AsyncState } from "../types";
-import { formatDate } from "../utils";
-import { StatusCard } from "./common";
+import type { GitHubReviewRequest } from "@/shared/github";
 
 export function ReviewInbox({
 	onRefresh,

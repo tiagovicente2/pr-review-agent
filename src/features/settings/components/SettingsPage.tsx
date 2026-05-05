@@ -1,13 +1,13 @@
 import { type ReactNode, useEffect, useState } from "react";
 import { css } from "styled-system/css";
 import { Box, HStack, Stack } from "styled-system/jsx";
+import { appRpc } from "@/app/rpc";
+import type { AsyncState } from "@/app/types";
+import { getErrorMessage } from "@/app/utils";
+import { StatusCard, TabButton } from "@/components/common";
+import { MarkdownContent } from "@/components/markdown/MarkdownContent";
 import { Button, Card, Textarea } from "@/components/ui";
-import type { AppSettings, CodeAgent, ColorModePreference } from "../../shared/settings";
-import { appRpc } from "../rpc";
-import type { AsyncState } from "../types";
-import { getErrorMessage } from "../utils";
-import { StatusCard, TabButton } from "./common";
-import { MarkdownContent } from "./markdown/MarkdownContent";
+import type { AppSettings, CodeAgent, ColorModePreference } from "@/shared/settings";
 
 export function SettingsPage({
 	onBack,

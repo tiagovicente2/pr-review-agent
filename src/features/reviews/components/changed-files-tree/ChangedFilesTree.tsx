@@ -1,6 +1,6 @@
 import { FileTree, useFileTree } from "@pierre/trees/react";
 import { type CSSProperties, useEffect, useMemo } from "react";
-import type { GitHubPullRequestDetails } from "../../../shared/github";
+import type { GitHubPullRequestDetails } from "@/shared/github";
 
 type ChangedFile = GitHubPullRequestDetails["files"][number];
 

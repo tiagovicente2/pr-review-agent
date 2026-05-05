@@ -1,0 +1,67 @@
+// Project-specific Zed settings
+{
+	"languages": {
+		"JavaScript": {
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		},
+		"JSX": {
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		},
+		"TypeScript": {
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		},
+		"TSX": {
+			"prettier": {
+				"allowed": false
+			},
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		},
+		"JSON": {
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		},
+		"JSONC": {
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		},
+		"CSS": {
+			"formatter": {
+				"external": {
+					"command": "bunx",
+					"arguments": ["biome", "format", "--stdin-file-path", "{buffer_path}"]
+				}
+			}
+		}
+	}
+}

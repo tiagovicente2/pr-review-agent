@@ -1,25 +1,25 @@
-import { resolve } from "node:path";
-import { fileURLToPath } from "node:url";
-import react from "@vitejs/plugin-react";
-import { defineConfig } from "vite";
+import { resolve } from 'node:path'
+import { fileURLToPath } from 'node:url'
+import react from '@vitejs/plugin-react'
+import { defineConfig } from 'vite'
 
-const projectRoot = fileURLToPath(new URL(".", import.meta.url));
+const projectRoot = fileURLToPath(new URL('.', import.meta.url))
 
 export default defineConfig({
 	plugins: [react()],
-	root: "src/mainview",
+	root: 'src/mainview',
 	build: {
-		outDir: "../../dist",
+		outDir: '../../dist',
 		emptyOutDir: true,
 	},
 	resolve: {
 		alias: {
-			"@": resolve(projectRoot, "src"),
-			"styled-system": resolve(projectRoot, "styled-system"),
+			'@': resolve(projectRoot, 'src'),
+			'styled-system': resolve(projectRoot, 'styled-system'),
 		},
 	},
 	server: {
 		port: 5173,
 		strictPort: true,
 	},
-});
+})

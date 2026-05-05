@@ -1,8 +1,8 @@
-import { Box, Grid, HStack, Stack } from "styled-system/jsx";
-import type { AsyncState, ColorMode } from "@/app/types";
-import { Code } from "@/components/common";
-import { Badge, Button, Card } from "@/components/ui";
-import type { GitHubAuthStatus } from "@/shared/github";
+import { Box, Grid, HStack, Stack } from 'styled-system/jsx'
+import type { AsyncState, ColorMode } from '@/app/types'
+import { Code } from '@/components/common'
+import { Badge, Button, Card } from '@/components/ui'
+import type { GitHubAuthStatus } from '@/shared/github'
 
 export function GitHubLoginPage({
 	authState,
@@ -14,18 +14,18 @@ export function GitHubLoginPage({
 	onToggleColorMode,
 	status,
 }: {
-	authState: AsyncState;
-	colorMode: ColorMode;
-	connectState: AsyncState;
-	loginOutput: string;
-	onConnect: () => void;
-	onRefresh: () => void;
-	onToggleColorMode: () => void;
-	status: GitHubAuthStatus;
+	authState: AsyncState
+	colorMode: ColorMode
+	connectState: AsyncState
+	loginOutput: string
+	onConnect: () => void
+	onRefresh: () => void
+	onToggleColorMode: () => void
+	status: GitHubAuthStatus
 }) {
 	const installMessage = !status.ghInstalled
-		? "Install GitHub CLI first, then come back and click Recheck."
-		: "Use your GitHub account through the local gh CLI credential store.";
+		? 'Install GitHub CLI first, then come back and click Recheck.'
+		: 'Use your GitHub account through the local gh CLI credential store.'
 
 	return (
 		<Grid h="100%" minH="0" overflowY="auto" placeItems="center" p="6">
@@ -36,7 +36,7 @@ export function GitHubLoginPage({
 							GitHub connect
 						</Badge>
 						<Button size="sm" variant="outline" onClick={onToggleColorMode}>
-							{colorMode === "dark" ? "Light" : "Dark"}
+							{colorMode === 'dark' ? 'Light' : 'Dark'}
 						</Button>
 					</HStack>
 					<Card.Title>Connect PR Review Agent to GitHub</Card.Title>
@@ -49,13 +49,13 @@ export function GitHubLoginPage({
 						<Box bg="gray.2" borderRadius="l2" p="4">
 							<HStack justify="space-between" mb="2">
 								<Box fontWeight="semibold">Status</Box>
-								<Badge colorPalette={status.ghInstalled ? "green" : "red"}>
-									{status.ghInstalled ? "gh installed" : "gh missing"}
+								<Badge colorPalette={status.ghInstalled ? 'green' : 'red'}>
+									{status.ghInstalled ? 'gh installed' : 'gh missing'}
 								</Badge>
 							</HStack>
 							<Box color="fg.muted" textStyle="sm">
-								{authState === "loading"
-									? "Checking GitHub CLI..."
+								{authState === 'loading'
+									? 'Checking GitHub CLI...'
 									: status.error || status.message || installMessage}
 							</Box>
 						</Box>
@@ -76,12 +76,12 @@ export function GitHubLoginPage({
 					</Stack>
 				</Card.Body>
 				<Card.Footer>
-					<Button variant="outline" onClick={onRefresh} loading={authState === "loading"}>
+					<Button variant="outline" onClick={onRefresh} loading={authState === 'loading'}>
 						Recheck
 					</Button>
 					<Button
 						disabled={!status.ghInstalled}
-						loading={connectState === "loading"}
+						loading={connectState === 'loading'}
 						onClick={onConnect}
 					>
 						Connect GitHub
@@ -89,5 +89,5 @@ export function GitHubLoginPage({
 				</Card.Footer>
 			</Card.Root>
 		</Grid>
-	);
+	)
 }

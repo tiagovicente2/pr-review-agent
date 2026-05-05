@@ -1,18 +1,22 @@
-import { useEffect, useState } from "react";
-import { Box, Grid, HStack, Stack } from "styled-system/jsx";
-import { appRpc } from "@/app/rpc";
-import type { AsyncState, ColorMode } from "@/app/types";
-import { formatDate, getErrorMessage } from "@/app/utils";
-import { StatusCard, TabButton } from "@/components/common";
-import { MarkdownContent } from "@/components/markdown/MarkdownContent";
-import { Badge, Button, Card } from "@/components/ui";
-import type { GitHubPullRequestDetails, GitHubReviewRequest } from "@/shared/github";
-import type { PiGeneratedReview, PiInlineComment, PiReviewFinding } from "@/shared/review";
-import { ChangedFilesTree } from "./changed-files-tree/ChangedFilesTree";
-import { DiffViewer } from "./diff-viewer/DiffViewer";
-import { GeneratedFindings } from "./GeneratedFindings";
+import { useEffect, useState } from 'react'
+import { Box, Grid, HStack, Stack } from 'styled-system/jsx'
+import { appRpc } from '@/app/rpc'
+import type { AsyncState, ColorMode } from '@/app/types'
+import { formatDate, getErrorMessage } from '@/app/utils'
+import { StatusCard, TabButton } from '@/components/common'
+import { MarkdownContent } from '@/components/markdown/MarkdownContent'
+import { Badge, Button, Card } from '@/components/ui'
+import type { GitHubPullRequestDetails, GitHubReviewRequest } from '@/shared/github'
+import type { PiGeneratedReview, PiInlineComment, PiReviewFinding } from '@/shared/review'
+import { ChangedFilesTree } from './changed-files-tree/ChangedFilesTree'
+import { DiffViewer } from './diff-viewer/DiffViewer'
+import { GeneratedFindings } from './GeneratedFindings'
 
-type TabId = "code" | "summary" | "review";
+type TabId = 'code' | 'summary' | 'review'
+
+function getPiReviewJobId(detail: GitHubPullRequestDetails) {
+	return `pi-review:${detail.repo}#${detail.pullRequestNumber}:${detail.headSha}`
+}
 
 export function ReviewDetail({
 	colorMode,
@@ -22,110 +26,164 @@ export function ReviewDetail({
 	review,
 	setSummary,
 }: {
-	colorMode: ColorMode;
-	detail: GitHubPullRequestDetails | null;
-	detailError: string;
-	detailState: AsyncState;
-	review: GitHubReviewRequest | null;
-	setSummary: (summary: string) => void;
+	colorMode: ColorMode
+	detail: GitHubPullRequestDetails | null
+	detailError: string
+	detailState: AsyncState
+	review: GitHubReviewRequest | null
+	setSummary: (summary: string) => void
 }) {
-	const [activeTab, setActiveTab] = useState<TabId>("code");
-	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null);
-	const [generationState, setGenerationState] = useState<AsyncState>("idle");
-	const [generationError, setGenerationError] = useState("");
-	const [publishError, setPublishError] = useState("");
-	const [publishingAll, setPublishingAll] = useState(false);
-	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set());
+	const [activeTab, setActiveTab] = useState<TabId>('code')
+	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null)
+	const [generationState, setGenerationState] = useState<AsyncState>('idle')
+	const [generationError, setGenerationError] = useState('')
+	const [publishError, setPublishError] = useState('')
+	const [publishingAll, setPublishingAll] = useState(false)
+	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set())
+	const [generationJobId, setGenerationJobId] = useState<string | null>(null)
 
 	useEffect(() => {
 		if (!detail) {
-			setGeneratedReview(null);
-			return;
+			setGeneratedReview(null)
+			setGenerationJobId(null)
+			return
 		}
 
-		let cancelled = false;
-		appRpc.request
-			.getSavedPiReview({
+		let cancelled = false
+		const jobId = getPiReviewJobId(detail)
+		Promise.all([
+			appRpc.request.getSavedPiReview({
 				headSha: detail.headSha,
 				pullRequestNumber: detail.pullRequestNumber,
 				repo: detail.repo,
-			})
-			.then((savedReview) => {
-				if (!cancelled) {
-					setGeneratedReview(savedReview);
+			}),
+			appRpc.request.getPiReviewGenerationJob({ jobId }),
+		])
+			.then(([savedReview, job]) => {
+				if (cancelled) {
+					return
+				}
+
+				setGeneratedReview(savedReview)
+				if (job?.status === 'running') {
+					setGenerationState('loading')
+					setGenerationJobId(job.id)
 				}
 			})
 			.catch(() => {
 				if (!cancelled) {
-					setGeneratedReview(null);
+					setGeneratedReview(null)
 				}
-			});
+			})
 
 		return () => {
-			cancelled = true;
-		};
-	}, [detail]);
+			cancelled = true
+		}
+	}, [detail])
 
 	const handleOpenOnGitHub = async () => {
 		if (review) {
-			await appRpc.request.openExternalUrl({ url: review.url });
+			await appRpc.request.openExternalUrl({ url: review.url })
 		}
-	};
+	}
 
 	const handlePublishFinding = async (finding: PiReviewFinding) => {
 		if (!detail) {
-			return;
+			return
 		}
-		setPublishError("");
-		setPublishingFindingIds((current) => new Set(current).add(finding.id));
+		setPublishError('')
+		setPublishingFindingIds((current) => new Set(current).add(finding.id))
 		try {
-			await appRpc.request.publishPiReviewComment({ finding, pullRequest: detail });
+			await appRpc.request.publishPiReviewComment({ finding, pullRequest: detail })
 		} catch (error) {
-			setPublishError(getErrorMessage(error));
+			setPublishError(getErrorMessage(error))
 		} finally {
 			setPublishingFindingIds((current) => {
-				const next = new Set(current);
-				next.delete(finding.id);
-				return next;
-			});
+				const next = new Set(current)
+				next.delete(finding.id)
+				return next
+			})
 		}
-	};
+	}
 
 	const handlePublishAll = async (findings: PiReviewFinding[]) => {
 		if (!detail) {
-			return;
+			return
 		}
-		setPublishError("");
-		setPublishingAll(true);
+		setPublishError('')
+		setPublishingAll(true)
 		try {
-			await appRpc.request.publishPiReviewComments({ findings, pullRequest: detail });
+			await appRpc.request.publishPiReviewComments({ findings, pullRequest: detail })
 		} catch (error) {
-			setPublishError(getErrorMessage(error));
+			setPublishError(getErrorMessage(error))
 		} finally {
-			setPublishingAll(false);
+			setPublishingAll(false)
 		}
-	};
+	}
+
+	useEffect(() => {
+		if (!generationJobId) {
+			return
+		}
+
+		let cancelled = false
+		const interval = window.setInterval(async () => {
+			try {
+				const job = await appRpc.request.getPiReviewGenerationJob({ jobId: generationJobId })
+				if (cancelled || !job) {
+					return
+				}
+
+				if (job.status === 'completed' && job.review) {
+					setGeneratedReview(job.review)
+					setSummary(job.review.publishableBody || job.review.summary)
+					setGenerationState('idle')
+					setGenerationJobId(null)
+				}
+
+				if (job.status === 'failed') {
+					setGenerationError(job.error ?? 'Pi review generation failed.')
+					setGenerationState('error')
+					setGenerationJobId(null)
+				}
+			} catch (error) {
+				if (!cancelled) {
+					setGenerationError(getErrorMessage(error))
+					setGenerationState('error')
+					setGenerationJobId(null)
+				}
+			}
+		}, 1500)
+
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
+	}, [generationJobId, setSummary])
 
 	const handleGenerateWithPi = async () => {
 		if (!detail) {
-			setGenerationError("Load PR details before generating a review.");
-			setGenerationState("error");
-			return;
+			setGenerationError('Load PR details before generating a review.')
+			setGenerationState('error')
+			return
 		}
 
-		setGenerationState("loading");
-		setGenerationError("");
+		setGenerationState('loading')
+		setGenerationError('')
 
 		try {
-			const reviewDraft = await appRpc.request.generateReviewWithPi({ pullRequest: detail });
-			setGeneratedReview(reviewDraft);
-			setSummary(reviewDraft.publishableBody || reviewDraft.summary);
-			setGenerationState("idle");
+			const job = await appRpc.request.startPiReviewGeneration({ pullRequest: detail })
+			setGenerationJobId(job.id)
+			if (job.status === 'completed' && job.review) {
+				setGeneratedReview(job.review)
+				setSummary(job.review.publishableBody || job.review.summary)
+				setGenerationState('idle')
+			}
 		} catch (error) {
-			setGenerationError(getErrorMessage(error));
-			setGenerationState("error");
+			setGenerationError(getErrorMessage(error))
+			setGenerationState('error')
 		}
-	};
+	}
 
 	if (!review) {
 		return (
@@ -135,14 +193,14 @@ export function ReviewDetail({
 					body="Your real GitHub review requests will appear in the inbox."
 				/>
 			</Grid>
-		);
+		)
 	}
 
 	return (
 		<Box
 			display="grid"
 			gridTemplateRows="auto minmax(0, 1fr)"
-			h={{ base: "auto", lg: "100%" }}
+			h={{ base: 'auto', lg: '100%' }}
 			minH="0"
 			minW="0"
 			overflow="hidden"
@@ -153,11 +211,11 @@ export function ReviewDetail({
 						<HStack flexWrap="wrap" gap="2" color="fg.muted" textStyle="sm">
 							<Badge colorPalette="cyan">requested review</Badge>
 							<Badge colorPalette="gray" variant="surface">
-								{detailState === "loading" ? "loading" : review.state}
+								{detailState === 'loading' ? 'loading' : review.state}
 							</Badge>
-							<Box>{detail?.changedFilesCount ?? "—"} files</Box>
-							<Box color="green.11">+{detail?.additions ?? "—"}</Box>
-							<Box color="red.11">-{detail?.deletions ?? "—"}</Box>
+							<Box>{detail?.changedFilesCount ?? '—'} files</Box>
+							<Box color="green.11">+{detail?.additions ?? '—'}</Box>
+							<Box color="red.11">-{detail?.deletions ?? '—'}</Box>
 							{detail?.headSha ? <Box>head {detail.headSha.slice(0, 7)}</Box> : null}
 						</HStack>
 						<Box as="h2" textStyle="xl" fontWeight="bold" letterSpacing="-0.03em" truncate>
@@ -194,20 +252,20 @@ export function ReviewDetail({
 						<Card.Header>
 							<HStack justify="space-between" gap="3" w="100%">
 								<HStack gap="0.5" p="0.5" bg="gray.2" borderRadius="l1" width="fit-content">
-									<TabButton active={activeTab === "code"} onClick={() => setActiveTab("code")}>
+									<TabButton active={activeTab === 'code'} onClick={() => setActiveTab('code')}>
 										Code
 									</TabButton>
 									<TabButton
-										active={activeTab === "summary"}
-										onClick={() => setActiveTab("summary")}
+										active={activeTab === 'summary'}
+										onClick={() => setActiveTab('summary')}
 									>
 										Summary
 									</TabButton>
-									<TabButton active={activeTab === "review"} onClick={() => setActiveTab("review")}>
+									<TabButton active={activeTab === 'review'} onClick={() => setActiveTab('review')}>
 										Review
 									</TabButton>
 								</HStack>
-								{activeTab === "review" ? (
+								{activeTab === 'review' ? (
 									<HStack gap="2">
 										{generatedReview?.findings.length ? (
 											<Button
@@ -219,20 +277,20 @@ export function ReviewDetail({
 											</Button>
 										) : null}
 										<Button
-											disabled={!detail || detailState === "loading"}
-											loading={generationState === "loading"}
+											disabled={!detail || detailState === 'loading'}
+											loading={generationState === 'loading'}
 											onClick={handleGenerateWithPi}
 											size="sm"
-											variant={generatedReview ? "outline" : "solid"}
+											variant={generatedReview ? 'outline' : 'solid'}
 										>
-											{generatedReview ? "Regenerate with Pi" : "Generate with Pi"}
+											{generatedReview ? 'Regenerate with Pi' : 'Generate with Pi'}
 										</Button>
 									</HStack>
 								) : null}
 							</HStack>
 						</Card.Header>
 						<Card.Body minH="0" overflow="hidden">
-							{activeTab === "code" && (
+							{activeTab === 'code' && (
 								<CodeTab
 									colorMode={colorMode}
 									detail={detail}
@@ -240,8 +298,8 @@ export function ReviewDetail({
 									inlineComments={generatedReview?.inlineComments ?? []}
 								/>
 							)}
-							{activeTab === "summary" && <SummaryTab detail={detail} />}
-							{activeTab === "review" && (
+							{activeTab === 'summary' && <SummaryTab detail={detail} />}
+							{activeTab === 'review' && (
 								<ReviewTab
 									generationError={generationError}
 									generationState={generationState}
@@ -256,7 +314,7 @@ export function ReviewDetail({
 				</Stack>
 			</Grid>
 		</Box>
-	);
+	)
 }
 
 function ReviewTab({
@@ -267,12 +325,12 @@ function ReviewTab({
 	onPublishFinding,
 	publishingFindingIds,
 }: {
-	generationError: string;
-	generationState: AsyncState;
-	generatedReview: PiGeneratedReview | null;
-	publishError: string;
-	onPublishFinding: (finding: PiReviewFinding) => void;
-	publishingFindingIds: Set<string>;
+	generationError: string
+	generationState: AsyncState
+	generatedReview: PiGeneratedReview | null
+	publishError: string
+	onPublishFinding: (finding: PiReviewFinding) => void
+	publishingFindingIds: Set<string>
 }) {
 	return (
 		<Stack gap="4" h="100%" minH="0" overflow="hidden">
@@ -280,7 +338,7 @@ function ReviewTab({
 				h="100%"
 				minH="0"
 				overflowY="auto"
-				textAlign={generatedReview ? "left" : "center"}
+				textAlign={generatedReview ? 'left' : 'center'}
 				w="100%"
 			>
 				<GeneratedFindings
@@ -292,7 +350,7 @@ function ReviewTab({
 				/>
 			</Box>
 		</Stack>
-	);
+	)
 }
 
 function CodeTab({
@@ -301,20 +359,20 @@ function CodeTab({
 	detailState,
 	inlineComments,
 }: {
-	colorMode: ColorMode;
-	detail: GitHubPullRequestDetails | null;
-	detailState: AsyncState;
-	inlineComments: PiInlineComment[];
+	colorMode: ColorMode
+	detail: GitHubPullRequestDetails | null
+	detailState: AsyncState
+	inlineComments: PiInlineComment[]
 }) {
-	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null);
+	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
 
-	if (detailState === "loading") {
-		return <StatusCard title="Loading diff from GitHub" body="Calling gh pr diff for this PR..." />;
+	if (detailState === 'loading') {
+		return <StatusCard title="Loading diff from GitHub" body="Calling gh pr diff for this PR..." />
 	}
 
 	return (
 		<Grid
-			gridTemplateColumns={{ base: "minmax(0, 1fr)", xl: "24rem minmax(0, 1fr)" }}
+			gridTemplateColumns={{ base: 'minmax(0, 1fr)', xl: '24rem minmax(0, 1fr)' }}
 			gap="5"
 			h="100%"
 			minH="0"
@@ -323,7 +381,7 @@ function CodeTab({
 		>
 			<Card.Root
 				h="100%"
-				maxH={{ base: "24rem", xl: "100%" }}
+				maxH={{ base: '24rem', xl: '100%' }}
 				minH="0"
 				overflow="hidden"
 				variant="outline"
@@ -349,7 +407,7 @@ function CodeTab({
 
 			<Box
 				h="100%"
-				maxH={{ base: "70vh", xl: "100%" }}
+				maxH={{ base: '70vh', xl: '100%' }}
 				maxW="100%"
 				minH="0"
 				minW="0"
@@ -358,32 +416,32 @@ function CodeTab({
 				<DiffViewer
 					colorMode={colorMode}
 					inlineComments={inlineComments}
-					patch={detail?.diff ?? ""}
+					patch={detail?.diff ?? ''}
 					selectedFilePath={selectedFilePath}
 				/>
 			</Box>
 		</Grid>
-	);
+	)
 }
 
 function SummaryTab({ detail }: { detail: GitHubPullRequestDetails | null }) {
 	return (
-		<Stack h="100%" maxH={{ base: "70vh", xl: "calc(100vh - 18rem)" }} minH="0" overflow="hidden">
+		<Stack h="100%" maxH={{ base: '70vh', xl: 'calc(100vh - 18rem)' }} minH="0" overflow="hidden">
 			<Card.Root h="100%" minH="0" overflow="hidden" variant="outline">
 				<Card.Header>
 					<Card.Title>Pull request summary</Card.Title>
 					<Card.Description>
 						{detail
 							? `${detail.headRefName} → ${detail.baseRefName} · ${detail.changedFilesCount} files changed`
-							: "Load a pull request to see its summary."}
+							: 'Load a pull request to see its summary.'}
 					</Card.Description>
 				</Card.Header>
 				<Card.Body minH="0" overflowY="auto">
 					<MarkdownContent>
-						{detail?.body || "This pull request does not include a description."}
+						{detail?.body || 'This pull request does not include a description.'}
 					</MarkdownContent>
 				</Card.Body>
 			</Card.Root>
 		</Stack>
-	);
+	)
 }

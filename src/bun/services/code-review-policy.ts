@@ -681,4 +681,4 @@ Before finalizing the review, verify:
 - [ ] TailwindCSS uses \`size-*\` when \`w-*\` and \`h-*\` have same value
 
 Remember to be constructive and provide specific examples with file paths and line numbers where applicable. Save the feedback in a markdown file.
-`;
+`

@@ -1,10 +1,10 @@
-import { css } from "styled-system/css";
-import { Box, Grid, HStack, Stack } from "styled-system/jsx";
-import type { AsyncState } from "@/app/types";
-import { StatusCard } from "@/components/common";
-import { MarkdownContent } from "@/components/markdown/MarkdownContent";
-import { Badge, Button, Card } from "@/components/ui";
-import type { PiGeneratedReview, PiReviewFinding, ReviewSeverity } from "@/shared/review";
+import { css } from 'styled-system/css'
+import { Box, Grid, HStack, Stack } from 'styled-system/jsx'
+import type { AsyncState } from '@/app/types'
+import { StatusCard } from '@/components/common'
+import { MarkdownContent } from '@/components/markdown/MarkdownContent'
+import { Badge, Button, Card } from '@/components/ui'
+import type { PiGeneratedReview, PiReviewFinding, ReviewSeverity } from '@/shared/review'
 
 export function GeneratedFindings({
 	error,
@@ -13,20 +13,20 @@ export function GeneratedFindings({
 	publishingFindingIds,
 	review,
 }: {
-	error: string;
-	generationState: AsyncState;
-	onPublishFinding?: (finding: PiReviewFinding) => void;
-	publishingFindingIds?: Set<string>;
-	review: PiGeneratedReview | null;
+	error: string
+	generationState: AsyncState
+	onPublishFinding?: (finding: PiReviewFinding) => void
+	publishingFindingIds?: Set<string>
+	review: PiGeneratedReview | null
 }) {
-	if (generationState === "loading") {
+	if (generationState === 'loading') {
 		return (
 			<StatusCard title="Pi is reviewing this PR" body="This can take a minute for larger diffs." />
-		);
+		)
 	}
 
 	if (error) {
-		return <StatusCard tone="red" title="Pi review generation failed" body={error} />;
+		return <StatusCard tone="red" title="Pi review generation failed" body={error} />
 	}
 
 	if (!review) {
@@ -35,7 +35,7 @@ export function GeneratedFindings({
 				title="No Pi draft yet"
 				body="Click Generate with Pi to review the loaded GitHub diff and create a local draft."
 			/>
-		);
+		)
 	}
 
 	return (
@@ -62,14 +62,14 @@ export function GeneratedFindings({
 				/>
 			) : null}
 			{review.findings.map((finding) => {
-				const canPublish = Boolean(finding.filePath && finding.lineStart);
-				const hasFix = Boolean(finding.fixSuggestion);
+				const canPublish = Boolean(finding.filePath && finding.lineStart)
+				const hasFix = Boolean(finding.fixSuggestion)
 				return (
 					<Card.Root key={finding.id} variant="outline">
 						<Card.Body p="4">
 							<Grid
 								gridTemplateColumns={
-									hasFix ? { base: "1fr", xl: "minmax(0, 0.9fr) minmax(0, 1.1fr)" } : "1fr"
+									hasFix ? { base: '1fr', xl: 'minmax(0, 0.9fr) minmax(0, 1.1fr)' } : '1fr'
 								}
 								gap="5"
 							>
@@ -101,47 +101,47 @@ export function GeneratedFindings({
 									<HStack color="fg.muted" justify="space-between" textStyle="xs">
 										<Box color="cyan.11">
 											{finding.filePath}
-											{finding.lineStart ? `:${finding.lineStart}` : ""}
+											{finding.lineStart ? `:${finding.lineStart}` : ''}
 										</Box>
 										<Box>{Math.round(finding.confidence * 100)}% confidence</Box>
 									</HStack>
 								</Stack>
 								{hasFix ? (
 									<Box minW="0">
-										<DiffCodeBlock diff={finding.fixSuggestion ?? ""} />
+										<DiffCodeBlock diff={finding.fixSuggestion ?? ''} />
 									</Box>
 								) : null}
 							</Grid>
 						</Card.Body>
 					</Card.Root>
-				);
+				)
 			})}
 		</Stack>
-	);
+	)
 }
 
 function DiffCodeBlock({ diff }: { diff: string }) {
-	const normalizedDiff = stripMarkdownFence(diff);
-	const lineCounts = new Map<string, number>();
-	const lines = normalizedDiff.split("\n").map((line) => {
-		const count = lineCounts.get(line) ?? 0;
-		lineCounts.set(line, count + 1);
-		return { id: `${line}-${count}`, value: line };
-	});
+	const normalizedDiff = stripMarkdownFence(diff)
+	const lineCounts = new Map<string, number>()
+	const lines = normalizedDiff.split('\n').map((line) => {
+		const count = lineCounts.get(line) ?? 0
+		lineCounts.set(line, count + 1)
+		return { id: `${line}-${count}`, value: line }
+	})
 
 	return (
 		<Box
 			as="pre"
 			className={css({
-				backgroundColor: "gray.1",
-				borderColor: "border.default",
-				borderRadius: "l2",
-				borderWidth: "1px",
-				fontFamily: "mono",
-				fontSize: "xs",
-				lineHeight: "1.7",
-				overflowX: "auto",
-				padding: "3",
+				backgroundColor: 'gray.1',
+				borderColor: 'border.default',
+				borderRadius: 'l2',
+				borderWidth: '1px',
+				fontFamily: 'mono',
+				fontSize: 'xs',
+				lineHeight: '1.7',
+				overflowX: 'auto',
+				padding: '3',
 			})}
 		>
 			{lines.map((line) => (
@@ -149,49 +149,49 @@ function DiffCodeBlock({ diff }: { diff: string }) {
 					as="code"
 					className={css({
 						color: diffLineColor(line.value),
-						display: "block",
-						whiteSpace: "pre",
+						display: 'block',
+						whiteSpace: 'pre',
 					})}
 					key={line.id}
 				>
-					{line.value || " "}
+					{line.value || ' '}
 				</Box>
 			))}
 		</Box>
-	);
+	)
 }
 
 function stripMarkdownFence(value: string) {
 	return value
-		.replace(/^```(?:diff|patch)?\n/i, "")
-		.replace(/\n```$/i, "")
-		.trim();
+		.replace(/^```(?:diff|patch)?\n/i, '')
+		.replace(/\n```$/i, '')
+		.trim()
 }
 
 function diffLineColor(line: string) {
-	if (line.startsWith("+") && !line.startsWith("+++")) {
-		return "green.11";
+	if (line.startsWith('+') && !line.startsWith('+++')) {
+		return 'green.11'
 	}
 
-	if (line.startsWith("-") && !line.startsWith("---")) {
-		return "red.11";
+	if (line.startsWith('-') && !line.startsWith('---')) {
+		return 'red.11'
 	}
 
-	if (line.startsWith("@@")) {
-		return "cyan.11";
+	if (line.startsWith('@@')) {
+		return 'cyan.11'
 	}
 
-	return "fg.muted";
+	return 'fg.muted'
 }
 
-function severityColorPalette(severity: ReviewSeverity): "cyan" | "gray" | "red" {
-	if (severity === "critical" || severity === "high") {
-		return "red";
+function severityColorPalette(severity: ReviewSeverity): 'cyan' | 'gray' | 'red' {
+	if (severity === 'critical' || severity === 'high') {
+		return 'red'
 	}
 
-	if (severity === "medium") {
-		return "cyan";
+	if (severity === 'medium') {
+		return 'cyan'
 	}
 
-	return "gray";
+	return 'gray'
 }

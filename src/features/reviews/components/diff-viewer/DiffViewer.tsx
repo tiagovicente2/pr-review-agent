@@ -1,25 +1,25 @@
-import { parsePatchFiles } from "@pierre/diffs";
-import { type DiffLineAnnotation, FileDiff, type FileDiffMetadata } from "@pierre/diffs/react";
-import { useEffect, useMemo, useRef, useState } from "react";
-import { css } from "styled-system/css";
-import { Box, HStack, Stack } from "styled-system/jsx";
-import { Badge, Button } from "@/components/ui";
-import type { PiInlineComment } from "@/shared/review";
+import { parsePatchFiles } from '@pierre/diffs'
+import { type DiffLineAnnotation, FileDiff, type FileDiffMetadata } from '@pierre/diffs/react'
+import { useEffect, useMemo, useRef, useState } from 'react'
+import { css } from 'styled-system/css'
+import { Box, HStack, Stack } from 'styled-system/jsx'
+import { Badge, Button } from '@/components/ui'
+import type { PiInlineComment } from '@/shared/review'
 
 type DiffAnnotation = {
-	body: string;
-};
+	body: string
+}
 
 type ParsedPatchState =
 	| { files: FileDiffMetadata[]; error?: undefined }
-	| { files: FileDiffMetadata[]; error: string };
+	| { files: FileDiffMetadata[]; error: string }
 
 type DiffViewerProps = {
-	colorMode: "light" | "dark";
-	inlineComments?: PiInlineComment[];
-	patch: string;
-	selectedFilePath?: string | null;
-};
+	colorMode: 'light' | 'dark'
+	inlineComments?: PiInlineComment[]
+	patch: string
+	selectedFilePath?: string | null
+}
 
 export function DiffViewer({
 	colorMode,
@@ -27,79 +27,79 @@ export function DiffViewer({
 	patch,
 	selectedFilePath,
 }: DiffViewerProps) {
-	const parsedPatch = useMemo(() => parsePatch(patch), [patch]);
-	const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(() => new Set());
-	const fileRefs = useRef(new Map<string, HTMLDivElement>());
+	const parsedPatch = useMemo(() => parsePatch(patch), [patch])
+	const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(() => new Set())
+	const fileRefs = useRef(new Map<string, HTMLDivElement>())
 
 	useEffect(() => {
 		if (!selectedFilePath) {
-			return;
+			return
 		}
 
-		let selectedKey: string | null = null;
+		let selectedKey: string | null = null
 		setCollapsedFiles((current) => {
-			const next = new Set(current);
+			const next = new Set(current)
 			for (const file of parsedPatch.files) {
 				if (file.name === selectedFilePath || file.prevName === selectedFilePath) {
-					selectedKey = getFileDiffKey(file);
-					next.delete(selectedKey);
+					selectedKey = getFileDiffKey(file)
+					next.delete(selectedKey)
 				}
 			}
-			return next;
-		});
+			return next
+		})
 
 		requestAnimationFrame(() => {
 			if (!selectedKey) {
-				return;
+				return
 			}
 
-			const node = fileRefs.current.get(selectedKey);
-			const scrollParent = node ? getScrollableParent(node) : null;
+			const node = fileRefs.current.get(selectedKey)
+			const scrollParent = node ? getScrollableParent(node) : null
 			if (node && scrollParent) {
 				scrollParent.scrollTo({
-					behavior: "smooth",
+					behavior: 'smooth',
 					top: node.offsetTop - scrollParent.offsetTop,
-				});
+				})
 			}
-		});
-	}, [parsedPatch.files, selectedFilePath]);
+		})
+	}, [parsedPatch.files, selectedFilePath])
 	const options = useMemo(
 		() =>
 			({
 				theme: {
-					dark: "pierre-dark",
-					light: "pierre-light",
+					dark: 'pierre-dark',
+					light: 'pierre-light',
 				},
 				themeType: colorMode,
-				diffStyle: "unified",
-				diffIndicators: "bars",
-				hunkSeparators: "line-info-basic",
-				lineDiffType: "word",
-				overflow: "scroll",
+				diffStyle: 'unified',
+				diffIndicators: 'bars',
+				hunkSeparators: 'line-info-basic',
+				lineDiffType: 'word',
+				overflow: 'scroll',
 				collapsedContextThreshold: 8,
 				expansionLineCount: 20,
 				tokenizeMaxLineLength: 500,
 			}) as const,
 		[colorMode],
-	);
+	)
 
 	if (!patch.trim()) {
-		return <DiffStatus title="No diff loaded" body="Select a PR to load its GitHub diff." />;
+		return <DiffStatus title="No diff loaded" body="Select a PR to load its GitHub diff." />
 	}
 
 	if (parsedPatch.error) {
-		return <DiffStatus title="Could not render diff" body={parsedPatch.error} tone="red" />;
+		return <DiffStatus title="Could not render diff" body={parsedPatch.error} tone="red" />
 	}
 
 	if (parsedPatch.files.length === 0) {
-		return <DiffStatus title="Empty diff" body="GitHub returned no changed files for this PR." />;
+		return <DiffStatus title="Empty diff" body="GitHub returned no changed files for this PR." />
 	}
 
 	return (
 		<Stack gap="4">
 			{parsedPatch.files.map((fileDiff) => {
-				const fileKey = getFileDiffKey(fileDiff);
-				const collapsed = collapsedFiles.has(fileKey);
+				const fileKey = getFileDiffKey(fileDiff)
+				const collapsed = collapsedFiles.has(fileKey)
 
 				return (
 					<Box
@@ -107,9 +107,9 @@ export function DiffViewer({
 						key={fileKey}
 						ref={(node) => {
 							if (node) {
-								fileRefs.current.set(fileKey, node);
+								fileRefs.current.set(fileKey, node)
 							} else {
-								fileRefs.current.delete(fileKey);
+								fileRefs.current.delete(fileKey)
 							}
 						}}
 					>
@@ -118,13 +118,13 @@ export function DiffViewer({
 							fileDiff={fileDiff}
 							onToggle={() =>
 								setCollapsedFiles((current) => {
-									const next = new Set(current);
+									const next = new Set(current)
 									if (next.has(fileKey)) {
-										next.delete(fileKey);
+										next.delete(fileKey)
 									} else {
-										next.add(fileKey);
+										next.add(fileKey)
 									}
-									return next;
+									return next
 								})
 							}
 						/>
@@ -138,10 +138,10 @@ export function DiffViewer({
 							/>
 						)}
 					</Box>
-				);
+				)
 			})}
 		</Stack>
-	);
+	)
 }
 
 function DiffFileHeader({
@@ -149,17 +149,17 @@ function DiffFileHeader({
 	fileDiff,
 	onToggle,
 }: {
-	collapsed: boolean;
-	fileDiff: FileDiffMetadata;
-	onToggle: () => void;
+	collapsed: boolean
+	fileDiff: FileDiffMetadata
+	onToggle: () => void
 }) {
-	const additions = fileDiff.hunks.reduce((total, hunk) => total + hunk.additionLines, 0);
-	const deletions = fileDiff.hunks.reduce((total, hunk) => total + hunk.deletionLines, 0);
+	const additions = fileDiff.hunks.reduce((total, hunk) => total + hunk.additionLines, 0)
+	const deletions = fileDiff.hunks.reduce((total, hunk) => total + hunk.deletionLines, 0)
 
 	return (
 		<HStack
 			bg="gray.2"
-			borderBottomWidth={collapsed ? "0" : "1px"}
+			borderBottomWidth={collapsed ? '0' : '1px'}
 			gap="3"
 			justify="space-between"
 			px="3"
@@ -167,7 +167,7 @@ function DiffFileHeader({
 		>
 			<HStack minW="0" gap="2">
 				<Button size="xs" variant="plain" onClick={onToggle}>
-					{collapsed ? "▸" : "▾"}
+					{collapsed ? '▸' : '▾'}
 				</Button>
 				<Stack gap="0" minW="0">
 					<Box fontFamily="mono" fontSize="sm" fontWeight="medium" truncate>
@@ -188,39 +188,39 @@ function DiffFileHeader({
 				<Box color="red.11">-{deletions}</Box>
 			</HStack>
 		</HStack>
-	);
+	)
 }
 
 function getScrollableParent(node: HTMLElement) {
-	let parent = node.parentElement;
+	let parent = node.parentElement
 	while (parent) {
-		const style = window.getComputedStyle(parent);
-		const canScrollY = /(auto|scroll)/.test(style.overflowY);
+		const style = window.getComputedStyle(parent)
+		const canScrollY = /(auto|scroll)/.test(style.overflowY)
 		if (canScrollY && parent.scrollHeight > parent.clientHeight) {
-			return parent;
+			return parent
 		}
-		parent = parent.parentElement;
+		parent = parent.parentElement
 	}
 
-	return null;
+	return null
 }
 
 function getFileDiffKey(fileDiff: FileDiffMetadata) {
-	return fileDiff.cacheKey ?? `${fileDiff.prevName ?? ""}->${fileDiff.name}:${fileDiff.type}`;
+	return fileDiff.cacheKey ?? `${fileDiff.prevName ?? ''}->${fileDiff.name}:${fileDiff.type}`
 }
 
 function parsePatch(patch: string): ParsedPatchState {
 	try {
 		return {
-			files: parsePatchFiles(patch, "github-pr-diff", true).flatMap(
+			files: parsePatchFiles(patch, 'github-pr-diff', true).flatMap(
 				(parsedPatch) => parsedPatch.files,
 			),
-		};
+		}
 	} catch (error) {
 		return {
 			files: [],
 			error: error instanceof Error ? error.message : String(error),
-		};
+		}
 	}
 }
 
@@ -235,8 +235,8 @@ function getLineAnnotations(
 			metadata: {
 				body: comment.body,
 			},
-			side: comment.side === "LEFT" ? "deletions" : "additions",
-		}));
+			side: comment.side === 'LEFT' ? 'deletions' : 'additions',
+		}))
 }
 
 function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
@@ -255,33 +255,33 @@ function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
 				{annotation.metadata.body}
 			</Box>
 		</Box>
-	);
+	)
 }
 
 function DiffStatus({
 	body,
 	title,
-	tone = "gray",
+	tone = 'gray',
 }: {
-	body: string;
-	title: string;
-	tone?: "gray" | "red";
+	body: string
+	title: string
+	tone?: 'gray' | 'red'
 }) {
 	return (
-		<Box bg={tone === "red" ? "red.subtle.bg" : "gray.2"} borderRadius="l2" p="4">
-			<Box color={tone === "red" ? "red.11" : "fg.default"} fontWeight="semibold">
+		<Box bg={tone === 'red' ? 'red.subtle.bg' : 'gray.2'} borderRadius="l2" p="4">
+			<Box color={tone === 'red' ? 'red.11' : 'fg.default'} fontWeight="semibold">
 				{title}
 			</Box>
-			<Box color={tone === "red" ? "red.11" : "fg.muted"} mt="1" textStyle="sm">
+			<Box color={tone === 'red' ? 'red.11' : 'fg.muted'} mt="1" textStyle="sm">
 				{body}
 			</Box>
 		</Box>
-	);
+	)
 }
 
 const diffClassName = css({
-	bg: "gray.1",
-	borderRadius: "l2",
-	borderWidth: "1px",
-	overflow: "hidden",
-});
+	bg: 'gray.1',
+	borderRadius: 'l2',
+	borderWidth: '1px',
+	overflow: 'hidden',
+})

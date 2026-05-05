@@ -1,17 +1,17 @@
-import type { ElectrobunConfig } from "electrobun";
+import type { ElectrobunConfig } from 'electrobun'
 
 export default {
 	app: {
-		name: "PR Review Agent",
-		identifier: "dev.local.pr-review-agent",
-		version: "0.1.0",
+		name: 'PR Review Agent',
+		identifier: 'dev.local.pr-review-agent',
+		version: '0.1.0',
 	},
 	build: {
 		copy: {
-			"dist/index.html": "views/mainview/index.html",
-			"dist/assets": "views/mainview/assets",
+			'dist/index.html': 'views/mainview/index.html',
+			'dist/assets': 'views/mainview/assets',
 		},
-		watchIgnore: ["dist/**"],
+		watchIgnore: ['dist/**'],
 		mac: {
 			bundleCEF: false,
 		},
@@ -22,4 +22,4 @@ export default {
 			bundleCEF: false,
 		},
 	},
-} satisfies ElectrobunConfig;
+} satisfies ElectrobunConfig

@@ -1,3 +1,4 @@
+import { Buffer } from 'node:buffer'
 import type {
 	GitHubAuthStatus,
 	GitHubLoginResult,
@@ -32,7 +33,7 @@ async function runGh(
 		},
 	})
 
-	if (input !== undefined) {
+	if (input !== undefined && proc.stdin) {
 		proc.stdin.write(input)
 		proc.stdin.end()
 	}
@@ -43,6 +44,25 @@ async function runGh(
 		proc.exited,
 	])
 
+	return { exitCode, stdout, stderr }
+}
+
+async function runGhBinary(args: string[]): Promise<{
+	exitCode: number
+	stdout: ArrayBuffer
+	stderr: string
+}> {
+	const proc = Bun.spawn(['gh', ...args], {
+		stdin: 'ignore',
+		stdout: 'pipe',
+		stderr: 'pipe',
+		env: { ...Bun.env, GH_PROMPT_DISABLED: '1' },
+	})
+	const [stdout, stderr, exitCode] = await Promise.all([
+		new Response(proc.stdout).arrayBuffer(),
+		new Response(proc.stderr).text(),
+		proc.exited,
+	])
 	return { exitCode, stdout, stderr }
 }
 
@@ -92,6 +112,20 @@ function getRepoName(repository: unknown): string {
 	}
 
 	return repo.name ?? 'unknown/unknown'
+}
+
+function getRepoParts(repo: string) {
+	const [owner, name] = repo.split('/')
+	if (!owner || !name) throw new Error(`Invalid repository name: ${repo}`)
+	return { owner, name }
+}
+
+function rewriteGitHubAssetUrls(markdown: string, repo: string) {
+	const { owner, name } = getRepoParts(repo)
+	return markdown.replace(
+		/(<img\b[^>]*\bsrc=["']|!\[[^\]]*\]\()\/?assets\//gi,
+		`$1https://github.com/${owner}/${name}/assets/`,
+	)
 }
 
 function getAuthorLogin(author: unknown): string {
@@ -185,6 +219,60 @@ export async function startGitHubLogin(): Promise<GitHubLoginResult> {
 	}
 }
 
+function toReviewRequest(item: {
+	id?: string
+	repository?: unknown
+	number: number
+	title: string
+	author?: unknown
+	url: string
+	updatedAt?: string
+	state: string
+	isDraft?: boolean
+}): GitHubReviewRequest {
+	const repo = getRepoName(item.repository)
+	return {
+		id: item.id ?? `${repo}#${item.number}`,
+		repo,
+		pullRequestNumber: item.number,
+		title: item.title,
+		author: getAuthorLogin(item.author),
+		url: item.url,
+		updatedAt: item.updatedAt ?? new Date().toISOString(),
+		state: item.state,
+		isDraft: item.isDraft ?? false,
+	}
+}
+
+function repoFromPullRequestUrl(url: string): { nameWithOwner: string } {
+	const match = url.match(/^https?:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/\d+/i)
+	return { nameWithOwner: match?.[1] ?? 'unknown/unknown' }
+}
+
+function parsePullRequestQuery(query: string): { target: string; repo?: string } {
+	const trimmed = query.trim()
+	if (!trimmed) {
+		throw new Error('Enter a GitHub PR URL, owner/repo#number, or owner/repo number.')
+	}
+
+	const urlMatch = trimmed.match(/^https?:\/\/github\.com\/([^/]+\/[^/]+)\/pull\/(\d+)/i)
+	if (urlMatch) {
+		return { target: urlMatch[2] ?? trimmed, repo: urlMatch[1] }
+	}
+
+	const hashMatch = trimmed.match(/^([^\s#]+\/[^\s#]+)#(\d+)$/)
+	if (hashMatch) {
+		return { target: hashMatch[2] ?? trimmed, repo: hashMatch[1] }
+	}
+
+	const spacedMatch = trimmed.match(/^([^\s#]+\/[^\s#]+)\s+(\d+)$/)
+	if (spacedMatch) {
+		return { target: spacedMatch[2] ?? trimmed, repo: spacedMatch[1] }
+	}
+
+	return { target: trimmed }
+}
+
 export async function listGitHubReviewRequests(): Promise<GitHubReviewRequest[]> {
 	const authStatus = await getGitHubAuthStatus()
 	if (!authStatus.authenticated) {
@@ -216,20 +304,44 @@ export async function listGitHubReviewRequests(): Promise<GitHubReviewRequest[]>
 		isDraft?: boolean
 	}>
 
-	return parsed.map((item) => {
-		const repo = getRepoName(item.repository)
-		return {
-			id: item.id ?? `${repo}#${item.number}`,
-			repo,
-			pullRequestNumber: item.number,
-			title: item.title,
-			author: getAuthorLogin(item.author),
-			url: item.url,
-			updatedAt: item.updatedAt,
-			state: item.state,
-			isDraft: item.isDraft ?? false,
-		}
-	})
+	return parsed.map(toReviewRequest)
+}
+
+export async function getGitHubPullRequestForReview(params: {
+	query: string
+}): Promise<GitHubReviewRequest> {
+	const authStatus = await getGitHubAuthStatus()
+	if (!authStatus.authenticated) {
+		throw new Error(authStatus.error ?? authStatus.message ?? 'Connect GitHub before loading a PR.')
+	}
+
+	const { target, repo } = parsePullRequestQuery(params.query)
+	const args = [
+		'pr',
+		'view',
+		target,
+		'--json',
+		'number,title,author,url,updatedAt,state,isDraft,id',
+	]
+	if (repo) {
+		args.push('--repo', repo)
+	}
+
+	const result = await runGh(args)
+	assertSuccess(result, 'load pull request for review')
+
+	const parsed = JSON.parse(result.stdout) as {
+		id?: string
+		number: number
+		title: string
+		author?: unknown
+		url: string
+		updatedAt?: string
+		state: string
+		isDraft?: boolean
+	}
+
+	return toReviewRequest({ ...parsed, repository: repoFromPullRequestUrl(parsed.url) })
 }
 
 export async function getGitHubPullRequestDetails(params: {
@@ -238,7 +350,7 @@ export async function getGitHubPullRequestDetails(params: {
 }): Promise<GitHubPullRequestDetails> {
 	const cached = getCachedPullRequestDetails(params)
 	if (cached) {
-		return cached
+		return { ...cached, body: rewriteGitHubAssetUrls(cached.body, params.repo) }
 	}
 
 	const view = await runGh([
@@ -271,13 +383,15 @@ export async function getGitHubPullRequestDetails(params: {
 		reviews?: Array<{ author?: unknown; state?: string; submittedAt?: string }>
 	}
 
+	const body = rewriteGitHubAssetUrls(parsed.body ?? '', params.repo)
+
 	const details = {
 		repo: params.repo,
 		pullRequestNumber: parsed.number,
 		title: parsed.title,
 		author: getAuthorLogin(parsed.author),
 		url: parsed.url,
-		body: parsed.body ?? '',
+		body,
 		state: parsed.state,
 		isDraft: parsed.isDraft ?? false,
 		headSha: parsed.headRefOid ?? '',
@@ -302,6 +416,26 @@ export async function getGitHubPullRequestDetails(params: {
 
 	saveCachedPullRequestDetails(details)
 	return details
+}
+
+export async function getGitHubAsset(params: { url: string }): Promise<{ dataUrl: string }> {
+	const parsedUrl = new URL(params.url)
+	if (parsedUrl.hostname !== 'github.com') {
+		throw new Error('Only github.com asset URLs can be loaded.')
+	}
+
+	const result = await runGhBinary([
+		'api',
+		parsedUrl.pathname,
+		'--header',
+		'Accept: application/octet-stream',
+	])
+	if (result.exitCode !== 0) {
+		throw new Error(result.stderr || 'GitHub CLI failed while trying to fetch GitHub asset.')
+	}
+
+	const data = Buffer.from(result.stdout).toString('base64')
+	return { dataUrl: `data:image/png;base64,${data}` }
 }
 
 export async function getGitHubPullRequestDiff(params: {

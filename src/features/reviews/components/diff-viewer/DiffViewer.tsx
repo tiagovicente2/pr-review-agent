@@ -1,9 +1,9 @@
 import { parsePatchFiles } from '@pierre/diffs'
 import { type DiffLineAnnotation, FileDiff, type FileDiffMetadata } from '@pierre/diffs/react'
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { css } from 'styled-system/css'
 import { Box, HStack, Stack } from 'styled-system/jsx'
-import { Badge, Button } from '@/components/ui'
+import { Badge } from '@/components/ui'
 import type { PiInlineComment } from '@/shared/review'
 
 type DiffAnnotation = {
@@ -21,14 +21,16 @@ type DiffViewerProps = {
 	selectedFilePath?: string | null
 }
 
-export function DiffViewer({
+export const DiffViewer = memo(function DiffViewer({
 	colorMode,
 	inlineComments = [],
 	patch,
 	selectedFilePath,
 }: DiffViewerProps) {
 	const parsedPatch = useMemo(() => parsePatch(patch), [patch])
+	const inlineCommentsByPath = useMemo(() => groupInlineCommentsByPath(inlineComments), [inlineComments])
 	const [collapsedFiles, setCollapsedFiles] = useState<Set<string>>(() => new Set())
+	const [expandedFiles, setExpandedFiles] = useState<Set<string>>(() => new Set())
 	const fileRefs = useRef(new Map<string, HTMLDivElement>())
 
 	useEffect(() => {
@@ -99,7 +101,8 @@ export function DiffViewer({
 		<Stack gap="4">
 			{parsedPatch.files.map((fileDiff) => {
 				const fileKey = getFileDiffKey(fileDiff)
-				const collapsed = collapsedFiles.has(fileKey)
+				const selected = fileDiff.name === selectedFilePath || fileDiff.prevName === selectedFilePath
+				const collapsed = collapsedFiles.has(fileKey) || (!selected && !expandedFiles.has(fileKey))
 
 				return (
 					<Box
@@ -116,23 +119,29 @@ export function DiffViewer({
 						<DiffFileHeader
 							collapsed={collapsed}
 							fileDiff={fileDiff}
-							onToggle={() =>
-								setCollapsedFiles((current) => {
-									const next = new Set(current)
-									if (next.has(fileKey)) {
+							onToggle={() => {
+								if (collapsed) {
+									setCollapsedFiles((current) => {
+										const next = new Set(current)
 										next.delete(fileKey)
-									} else {
-										next.add(fileKey)
-									}
-									return next
-								})
-							}
+										return next
+									})
+									setExpandedFiles((current) => new Set(current).add(fileKey))
+								} else {
+									setExpandedFiles((current) => {
+										const next = new Set(current)
+										next.delete(fileKey)
+										return next
+									})
+									setCollapsedFiles((current) => new Set(current).add(fileKey))
+								}
+							}}
 						/>
 						{collapsed ? null : (
 							<FileDiff
 								disableWorkerPool
 								fileDiff={fileDiff}
-								lineAnnotations={getLineAnnotations(fileDiff, inlineComments)}
+								lineAnnotations={getLineAnnotations(fileDiff, inlineCommentsByPath)}
 								options={{ ...options, disableFileHeader: true }}
 								renderAnnotation={renderAnnotation}
 							/>
@@ -142,7 +151,7 @@ export function DiffViewer({
 			})}
 		</Stack>
 	)
-}
+})
 
 function DiffFileHeader({
 	collapsed,
@@ -157,37 +166,43 @@ function DiffFileHeader({
 	const deletions = fileDiff.hunks.reduce((total, hunk) => total + hunk.deletionLines, 0)
 
 	return (
-		<HStack
+		<Box
+			as="button"
 			bg="gray.2"
 			borderBottomWidth={collapsed ? '0' : '1px'}
-			gap="3"
-			justify="space-between"
+			cursor="pointer"
+			onClick={onToggle}
 			px="3"
 			py="2"
+			textAlign="left"
+			w="100%"
+			_hover={{ bg: 'gray.3' }}
 		>
-			<HStack minW="0" gap="2">
-				<Button size="xs" variant="plain" onClick={onToggle}>
-					{collapsed ? '▸' : '▾'}
-				</Button>
-				<Stack gap="0" minW="0">
-					<Box fontFamily="mono" fontSize="sm" fontWeight="medium" truncate>
-						{fileDiff.name}
+			<HStack gap="3" justify="space-between" w="100%">
+				<HStack minW="0" gap="2">
+					<Box color="fg.muted" fontSize="sm" w="5">
+						{collapsed ? '▸' : '▾'}
 					</Box>
-					{fileDiff.prevName && fileDiff.prevName !== fileDiff.name ? (
-						<Box color="fg.muted" fontFamily="mono" fontSize="xs" truncate>
-							from {fileDiff.prevName}
+					<Stack gap="0" minW="0">
+						<Box fontFamily="mono" fontSize="sm" fontWeight="medium" truncate>
+							{fileDiff.name}
 						</Box>
-					) : null}
-				</Stack>
+						{fileDiff.prevName && fileDiff.prevName !== fileDiff.name ? (
+							<Box color="fg.muted" fontFamily="mono" fontSize="xs" truncate>
+								from {fileDiff.prevName}
+							</Box>
+						) : null}
+					</Stack>
+				</HStack>
+				<HStack flexShrink="0" gap="2" fontFamily="mono" fontSize="xs">
+					<Badge colorPalette="gray" variant="surface">
+						{fileDiff.type}
+					</Badge>
+					<Box color="green.11">+{additions}</Box>
+					<Box color="red.11">-{deletions}</Box>
+				</HStack>
 			</HStack>
-			<HStack flexShrink="0" gap="2" fontFamily="mono" fontSize="xs">
-				<Badge colorPalette="gray" variant="surface">
-					{fileDiff.type}
-				</Badge>
-				<Box color="green.11">+{additions}</Box>
-				<Box color="red.11">-{deletions}</Box>
-			</HStack>
-		</HStack>
+		</Box>
 	)
 }
 
@@ -224,12 +239,22 @@ function parsePatch(patch: string): ParsedPatchState {
 	}
 }
 
+function groupInlineCommentsByPath(inlineComments: PiInlineComment[]) {
+	const commentsByPath = new Map<string, PiInlineComment[]>()
+	for (const comment of inlineComments) {
+		commentsByPath.set(comment.path, [...(commentsByPath.get(comment.path) ?? []), comment])
+	}
+	return commentsByPath
+}
+
 function getLineAnnotations(
 	fileDiff: FileDiffMetadata,
-	inlineComments: PiInlineComment[],
+	inlineCommentsByPath: Map<string, PiInlineComment[]>,
 ): DiffLineAnnotation<DiffAnnotation>[] {
-	return inlineComments
-		.filter((comment) => comment.path === fileDiff.name || comment.path === fileDiff.prevName)
+	return [
+		...(inlineCommentsByPath.get(fileDiff.name) ?? []),
+		...(fileDiff.prevName ? (inlineCommentsByPath.get(fileDiff.prevName) ?? []) : []),
+	]
 		.map((comment) => ({
 			lineNumber: comment.line,
 			metadata: {
@@ -249,7 +274,7 @@ function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
 			p="3"
 		>
 			<Badge colorPalette="cyan" size="sm">
-				Pi comment
+				Review comment
 			</Badge>
 			<Box color="fg.default" mt="2" textStyle="sm">
 				{annotation.metadata.body}

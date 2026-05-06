@@ -7,8 +7,9 @@ import type { AsyncState } from '@/app/types'
 import { getErrorMessage } from '@/app/utils'
 import { StatusCard, TabButton } from '@/components/common'
 import { MarkdownContent } from '@/components/markdown/MarkdownContent'
-import { Button, Card, Textarea } from '@/components/ui'
+import { Badge, Button, Card, Textarea } from '@/components/ui'
 import type {
+	AgentAvailability,
 	AppSettings,
 	AvailablePiModel,
 	CodeAgent,
@@ -27,6 +28,8 @@ export function SettingsPage({
 	const [state, setState] = useState<AsyncState>('loading')
 	const [error, setError] = useState('')
 	const [availableModels, setAvailableModels] = useState<AvailablePiModel[]>([])
+	const [agentAvailability, setAgentAvailability] = useState<AgentAvailability[]>([])
+	const [agentsState, setAgentsState] = useState<AsyncState>('idle')
 	const [instructionsMode, setInstructionsMode] = useState<'raw' | 'preview'>('raw')
 	const instructionsModeInitializedRef = useRef(false)
 	const { showToast } = useToast()
@@ -51,17 +54,54 @@ export function SettingsPage({
 				setState('error')
 			})
 
-		appRpc.request
-			.listAvailablePiModels()
-			.then((models) => {
-				if (!cancelled) setAvailableModels(models)
-			})
-			.catch(() => undefined)
-
 		return () => {
 			cancelled = true
 		}
 	}, [])
+
+	const refreshAgentAvailability = async () => {
+		setAgentsState('loading')
+		try {
+			setAgentAvailability(await appRpc.request.listAgentAvailability())
+			setAgentsState('idle')
+		} catch {
+			setAgentsState('error')
+		}
+	}
+
+	useEffect(() => {
+		void refreshAgentAvailability()
+	}, [])
+
+	useEffect(() => {
+		if (!settings) return
+		let cancelled = false
+		setAvailableModels([])
+		appRpc.request
+			.listAvailablePiModels({ agent: settings.codeAgent })
+			.then((models) => {
+				if (cancelled) return
+				setAvailableModels(models)
+				if (models.length > 0 && !models.some((model) => model.id === settings.model)) {
+					setSettings((current) =>
+						current?.codeAgent === settings.codeAgent
+							? { ...current, model: models[0]?.id ?? current.model }
+							: current,
+					)
+				}
+			})
+			.catch(() => {
+				if (!cancelled) setAvailableModels([])
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [settings?.codeAgent])
+
+	const selectedAgentAvailability = settings
+		? agentAvailability.find((agent) => agent.agent === settings.codeAgent)
+		: undefined
 
 	const save = async () => {
 		if (!settings) return
@@ -114,8 +154,8 @@ export function SettingsPage({
 						minH="0"
 						overflow="hidden"
 					>
+						<Stack gap="4" minH="0" overflowY="auto">
 						<Card.Root
-							h="100%"
 							minH="0"
 							overflow="visible"
 							display="grid"
@@ -146,17 +186,24 @@ export function SettingsPage({
 												setSettings({
 													...settings,
 													codeAgent: value as CodeAgent,
+													model: '',
 												})
 											}
-											options={['pi']}
+											options={['pi', 'claude', 'opencode']}
 										/>
 									</InlineField>
+									{selectedAgentAvailability ? (
+										<Box color={selectedAgentAvailability.ready ? 'green.11' : 'red.11'} textStyle="xs">
+											{selectedAgentAvailability.message}
+										</Box>
+									) : null}
 									<InlineField label="Model">
 										<Select
 											value={settings.model}
 											onChange={(model) => setSettings({ ...settings, model })}
 											options={getModelOptions(settings.model, availableModels)}
 											loading={availableModels.length === 0}
+											disabled={availableModels.length === 0}
 										/>
 									</InlineField>
 									<InlineField label="Review language">
@@ -174,6 +221,12 @@ export function SettingsPage({
 								</Stack>
 							</Card.Body>
 						</Card.Root>
+						<AgentStatusCard
+							agents={agentAvailability}
+							agentsState={agentsState}
+							onRefresh={() => void refreshAgentAvailability()}
+						/>
+						</Stack>
 
 						<Card.Root
 							h="100%"
@@ -245,6 +298,58 @@ export function SettingsPage({
 	)
 }
 
+function AgentStatusCard({
+	agents,
+	agentsState,
+	onRefresh,
+}: {
+	agents: AgentAvailability[]
+	agentsState: AsyncState
+	onRefresh: () => void
+}) {
+	const readyCount = agents.filter((agent) => agent.ready).length
+	return (
+		<Card.Root variant="outline">
+			<Card.Header>
+				<HStack justify="space-between" gap="3">
+					<Box minW="0">
+						<Card.Title>System status</Card.Title>
+						<Card.Description>GitHub is checked during onboarding. Review agent status is shown here.</Card.Description>
+					</Box>
+					<Button size="sm" variant="outline" loading={agentsState === 'loading'} onClick={onRefresh}>
+						Recheck
+					</Button>
+				</HStack>
+			</Card.Header>
+			<Card.Body>
+				<Stack gap="3">
+					<HStack justify="space-between" gap="3">
+						<Box color="fg.muted" textStyle="sm">
+							At least one review agent must be ready to generate drafts.
+						</Box>
+						<Badge colorPalette={readyCount > 0 ? 'green' : 'red'}>
+							{readyCount > 0 ? `${readyCount} ready` : 'Needs setup'}
+						</Badge>
+					</HStack>
+					{agents.map((agent) => (
+						<Box key={agent.agent} bg="gray.2" borderRadius="l2" p="3">
+							<HStack justify="space-between" gap="3">
+								<Box fontWeight="semibold">{agent.label}</Box>
+								<Badge colorPalette={agent.ready ? 'green' : agent.installed ? 'cyan' : 'red'}>
+									{agent.ready ? 'Ready' : agent.installed ? 'Needs login' : 'Missing'}
+								</Badge>
+							</HStack>
+							<Box color="fg.muted" mt="2" textStyle="xs">
+								{agent.message}
+							</Box>
+						</Box>
+					))}
+				</Stack>
+			</Card.Body>
+		</Card.Root>
+	)
+}
+
 function InlineField({ children, label }: { children: ReactNode; label: string }) {
 	return (
 		<HStack
@@ -264,6 +369,7 @@ function InlineField({ children, label }: { children: ReactNode; label: string }
 
 function getModelOptions(currentModel: string, models: AvailablePiModel[]) {
 	const options = models.map((model) => model.id)
+	if (!currentModel) return options
 	return options.includes(currentModel) ? options : [currentModel, ...options]
 }
 
@@ -272,11 +378,13 @@ function Select({
 	options,
 	onChange,
 	loading = false,
+	disabled = false,
 }: {
 	value: string
 	options: string[]
 	onChange: (value: string) => void
 	loading?: boolean
+	disabled?: boolean
 }) {
 	const [open, setOpen] = useState(false)
 	const ref = useRef<HTMLDivElement>(null)
@@ -296,7 +404,8 @@ function Select({
 				type="button"
 				aria-busy={loading}
 				aria-expanded={open}
-				title={loading ? 'Loading Pi models…' : undefined}
+				disabled={disabled}
+				title={loading ? 'Loading models…' : undefined}
 				className={css({
 					alignItems: 'center',
 					bg: 'gray.2',
@@ -304,7 +413,7 @@ function Select({
 					borderRadius: 'l2',
 					borderWidth: '1px',
 					color: 'fg.default',
-					cursor: 'pointer',
+					cursor: disabled ? 'not-allowed' : 'pointer',
 					display: 'flex',
 					fontSize: 'sm',
 					h: '10',
@@ -314,12 +423,14 @@ function Select({
 					textAlign: 'left',
 					w: '100%',
 				})}
-				onClick={() => setOpen((current) => !current)}
+				onClick={() => {
+					if (!disabled) setOpen((current) => !current)
+				}}
 			>
 				<span
 					className={css({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}
 				>
-					{value}
+					{loading ? 'Loading models…' : value}
 				</span>
 				<span aria-hidden="true">▾</span>
 			</button>

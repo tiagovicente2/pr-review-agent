@@ -1,8 +1,30 @@
+import { useEffect, useState } from 'react'
 import ReactMarkdown from 'react-markdown'
 import rehypeRaw from 'rehype-raw'
 import remarkGfm from 'remark-gfm'
 import { css } from 'styled-system/css'
 import { Box } from 'styled-system/jsx'
+import { appRpc } from '@/app/rpc'
+
+function GitHubImage({ alt, src }: { alt?: string; src?: string }) {
+	const [dataUrl, setDataUrl] = useState<string | null>(null)
+
+	useEffect(() => {
+		if (!src?.startsWith('https://github.com/')) return
+		let cancelled = false
+		appRpc.request
+			.getGitHubAsset({ url: src })
+			.then((result) => {
+				if (!cancelled) setDataUrl(result.dataUrl)
+			})
+			.catch(() => undefined)
+		return () => {
+			cancelled = true
+		}
+	}, [src])
+
+	return <img alt={alt ?? ''} src={dataUrl ?? src} />
+}
 
 export function MarkdownContent({ children }: { children: string }) {
 	return (
@@ -60,7 +82,11 @@ export function MarkdownContent({ children }: { children: string }) {
 				'& summary': { color: 'fg.default', cursor: 'pointer', fontWeight: 'semibold' },
 			})}
 		>
-			<ReactMarkdown rehypePlugins={[rehypeRaw]} remarkPlugins={[remarkGfm]}>
+			<ReactMarkdown
+				components={{ img: ({ alt, src }) => <GitHubImage alt={alt} src={src} /> }}
+				rehypePlugins={[rehypeRaw]}
+				remarkPlugins={[remarkGfm]}
+			>
 				{children}
 			</ReactMarkdown>
 		</Box>

@@ -4,8 +4,11 @@ import type { AsyncState } from '@/app/types'
 import { Code } from '@/components/common'
 import { Badge, Button, Card } from '@/components/ui'
 import type { GitHubAuthStatus } from '@/shared/github'
+import type { AgentAvailability } from '@/shared/settings'
 
 export function OnboardingPage({
+	agentAvailability,
+	agentsState,
 	authState,
 	connectState,
 	loginOutput,
@@ -15,6 +18,8 @@ export function OnboardingPage({
 	onRefresh,
 	status,
 }: {
+	agentAvailability: AgentAvailability[]
+	agentsState: AsyncState
 	authState: AsyncState
 	connectState: AsyncState
 	loginOutput: string
@@ -49,6 +54,7 @@ export function OnboardingPage({
 				<Card.Body>
 					<Stack gap="4">
 						<GitHubCliStep authState={authState} status={status} />
+						<AgentStep agents={agentAvailability} agentsState={agentsState} />
 						<PreferencesStep onOpenSettings={onOpenSettings} />
 						<ConnectStep status={status} />
 						<LoginOutput output={loginOutput} />
@@ -88,9 +94,46 @@ function GitHubCliStep({ authState, status }: { authState: AsyncState; status: G
 	)
 }
 
+function AgentStep({
+	agents,
+	agentsState,
+}: {
+	agents: AgentAvailability[]
+	agentsState: AsyncState
+}) {
+	const readyCount = agents.filter((agent) => agent.ready).length
+	return (
+		<OnboardingStep
+			badge={agentsState === 'loading' ? 'Checking' : readyCount > 0 ? `${readyCount} ready` : 'Needs setup'}
+			badgeTone={readyCount > 0 ? 'green' : agentsState === 'loading' ? 'cyan' : 'red'}
+			index="2"
+			title="Check review agents"
+		>
+			<Stack gap="2">
+				<Box color="fg.muted" textStyle="sm">
+					At least one local review agent must be installed and authenticated before generating drafts.
+				</Box>
+				{agents.map((agent) => (
+					<HStack key={agent.agent} justify="space-between" gap="3" textStyle="sm">
+						<Box fontWeight="medium">{agent.label}</Box>
+						<Badge colorPalette={agent.ready ? 'green' : agent.installed ? 'cyan' : 'red'}>
+							{agent.ready ? 'Ready' : agent.installed ? 'Needs login' : 'Missing'}
+						</Badge>
+					</HStack>
+				))}
+				{agents.find((agent) => !agent.ready)?.message ? (
+					<Box color="fg.muted" textStyle="xs">
+						{agents.find((agent) => !agent.ready)?.message}
+					</Box>
+				) : null}
+			</Stack>
+		</OnboardingStep>
+	)
+}
+
 function PreferencesStep({ onOpenSettings }: { onOpenSettings: () => void }) {
 	return (
-		<OnboardingStep badge="Optional" badgeTone="gray" index="2" title="Review preferences">
+		<OnboardingStep badge="Optional" badgeTone="gray" index="3" title="Review preferences">
 			<Stack gap="3">
 				<Box color="fg.muted" textStyle="sm">
 					Choose the theme, review language, and reviewer instructions used for generated drafts.
@@ -108,7 +151,7 @@ function ConnectStep({ status }: { status: GitHubAuthStatus }) {
 		<OnboardingStep
 			badge={status.authenticated ? 'Authenticated' : 'Not connected'}
 			badgeTone={status.authenticated ? 'green' : 'cyan'}
-			index="3"
+			index="4"
 			title="Authenticate GitHub"
 		>
 			<Box color="fg.muted" textStyle="sm">

@@ -13,7 +13,13 @@ import type {
 	PublishPiReviewCommentResult,
 	PublishPiReviewCommentsParams,
 } from './review'
-import type { AppSettings, AvailablePiModel, SaveAppSettingsParams } from './settings'
+import type {
+	AgentAvailability,
+	AppSettings,
+	AvailablePiModel,
+	CodeAgent,
+	SaveAppSettingsParams,
+} from './settings'
 
 export type AppRPCSchema = {
 	bun: {
@@ -26,9 +32,17 @@ export type AppRPCSchema = {
 				params: SaveAppSettingsParams
 				response: AppSettings
 			}
-			listAvailablePiModels: {
+			completeOnboarding: {
 				params: undefined
+				response: AppSettings
+			}
+			listAvailablePiModels: {
+				params: { agent?: CodeAgent } | undefined
 				response: AvailablePiModel[]
+			}
+			listAgentAvailability: {
+				params: undefined
+				response: AgentAvailability[]
 			}
 			getSystemColorMode: {
 				params: undefined
@@ -46,6 +60,10 @@ export type AppRPCSchema = {
 				params: undefined
 				response: GitHubReviewRequest[]
 			}
+			getGitHubPullRequestForReview: {
+				params: { query: string }
+				response: GitHubReviewRequest
+			}
 			getGitHubPullRequestDetails: {
 				params: {
 					repo: string
@@ -60,6 +78,10 @@ export type AppRPCSchema = {
 					headSha: string
 				}
 				response: { diff: string }
+			}
+			getGitHubAsset: {
+				params: { url: string }
+				response: { dataUrl: string }
 			}
 			generateReviewWithPi: {
 				params: GeneratePiReviewParams

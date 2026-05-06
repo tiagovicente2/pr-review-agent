@@ -9,10 +9,12 @@ import type { GitHubReviewRequest } from '@/shared/github'
 export function ReviewInbox({
 	onRefresh,
 	onOpenSettings,
+	onReviewPr,
 	onSelectReview,
 	query,
 	reviews,
 	reviewsError,
+	reviewPrState,
 	reviewsState,
 	selectedReviewId,
 	setQuery,
@@ -20,10 +22,12 @@ export function ReviewInbox({
 }: {
 	onRefresh: () => void
 	onOpenSettings: () => void
+	onReviewPr: () => void
 	onSelectReview: (id: string) => void
 	query: string
 	reviews: GitHubReviewRequest[]
 	reviewsError: string
+	reviewPrState: AsyncState
 	reviewsState: AsyncState
 	selectedReviewId: string | null
 	setQuery: (query: string) => void
@@ -65,15 +69,28 @@ export function ReviewInbox({
 
 				<Stack gap="2">
 					<label className={css({ textStyle: 'sm', fontWeight: 'medium' })} htmlFor="review-search">
-						Search reviews
+						Search or review a PR
 					</label>
-					<Input
-						id="review-search"
-						onChange={(event) => setQuery(event.target.value)}
-						placeholder="Repo, PR, author, title"
-						value={query}
-						variant="surface"
-					/>
+					<HStack gap="2">
+						<Input
+							id="review-search"
+							onChange={(event) => setQuery(event.target.value)}
+							onKeyDown={(event) => {
+								if (event.key === 'Enter') onReviewPr()
+							}}
+							placeholder="Repo, PR, author, title, or github.com/owner/repo/pull/123"
+							value={query}
+							variant="surface"
+						/>
+						<Button
+							size="sm"
+							onClick={onReviewPr}
+							loading={reviewPrState === 'loading'}
+							disabled={!query.trim() || reviewPrState === 'loading'}
+						>
+							Review PR
+						</Button>
+					</HStack>
 				</Stack>
 
 				{reviewsError ? (

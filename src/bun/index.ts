@@ -1,9 +1,11 @@
 import { BrowserView, BrowserWindow, Updater } from 'electrobun/bun'
 import type { AppRPCSchema } from '@/shared/rpc'
 import {
+	getGitHubAsset,
 	getGitHubAuthStatus,
 	getGitHubPullRequestDetails,
 	getGitHubPullRequestDiff,
+	getGitHubPullRequestForReview,
 	listGitHubReviewRequests,
 	startGitHubLogin,
 } from './services/github'
@@ -12,7 +14,13 @@ import { publishPiReviewComment, publishPiReviewComments } from './services/pi-p
 import { generateReviewWithPi } from './services/pi-review'
 import { getPiReviewGenerationJob, startPiReviewGeneration } from './services/pi-review-jobs'
 import { getSavedGeneratedReview } from './services/review-store'
-import { getAppSettings, listAvailablePiModels, saveAppSettings } from './services/settings'
+import {
+	completeOnboarding,
+	getAppSettings,
+	listAgentAvailability,
+	listAvailablePiModels,
+	saveAppSettings,
+} from './services/settings'
 import { getSystemColorMode, startSystemColorModeWatcher } from './services/system-appearance'
 import {
 	closeWindow,
@@ -46,13 +54,17 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 		requests: {
 			getAppSettings,
 			saveAppSettings,
+			completeOnboarding,
 			listAvailablePiModels,
+			listAgentAvailability,
 			getSystemColorMode,
 			getGitHubAuthStatus,
 			startGitHubLogin,
 			listGitHubReviewRequests,
+			getGitHubPullRequestForReview,
 			getGitHubPullRequestDetails,
 			getGitHubPullRequestDiff,
+			getGitHubAsset,
 			generateReviewWithPi,
 			startPiReviewGeneration,
 			getPiReviewGenerationJob,

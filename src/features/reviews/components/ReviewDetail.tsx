@@ -34,7 +34,7 @@ export function ReviewDetail({
 	review: GitHubReviewRequest | null
 	setSummary: (summary: string) => void
 }) {
-	const [activeTab, setActiveTab] = useState<TabId>('code')
+	const [activeTab, setActiveTab] = useState<TabId>('summary')
 	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null)
 	const [generationState, setGenerationState] = useState<AsyncState>('idle')
 	const [generationError, setGenerationError] = useState('')
@@ -52,9 +52,14 @@ export function ReviewDetail({
 		setDiff('')
 		setDiffState('idle')
 		setDiffError('')
+		setGeneratedReview(null)
+		setGenerationState('idle')
+		setGenerationError('')
+		setGenerationMessage('')
+		setPublishError('')
+		setGenerationJobId(null)
+
 		if (!detail) {
-			setGeneratedReview(null)
-			setGenerationJobId(null)
 			return
 		}
 
@@ -77,6 +82,13 @@ export function ReviewDetail({
 				if (job?.status === 'running') {
 					setGenerationState('loading')
 					setGenerationJobId(job.id)
+					setGenerationMessage(job.statusMessage ?? '')
+				} else if (job?.status === 'failed') {
+					setGenerationState('error')
+					setGenerationError(job.error ?? 'Review generation failed.')
+				} else {
+					setGenerationState('idle')
+					setGenerationJobId(null)
 				}
 			})
 			.catch(() => {
@@ -183,14 +195,14 @@ export function ReviewDetail({
 					setGenerationState('idle')
 					showToast({
 						title: 'Review completed',
-						description: 'Pi generated a draft review.',
+						description: 'A draft review was generated.',
 						tone: 'success',
 					})
 					setGenerationJobId(null)
 				}
 
 				if (job.status === 'failed') {
-					setGenerationError(job.error ?? 'Pi review generation failed.')
+					setGenerationError(job.error ?? 'Review generation failed.')
 					setGenerationState('error')
 					setGenerationJobId(null)
 				}
@@ -235,7 +247,7 @@ export function ReviewDetail({
 		}
 	}
 
-	const handleGenerateWithPi = async () => {
+	const handleGenerateReview = async () => {
 		if (!detail) {
 			setGenerationError('Load PR details before generating a review.')
 			setGenerationState('error')
@@ -245,11 +257,11 @@ export function ReviewDetail({
 		setActiveTab('review')
 		setGenerationState('loading')
 		setGenerationError('')
-		setGenerationMessage('Loading the latest PR diff before starting Pi...')
+		setGenerationMessage('Loading the latest PR diff before starting review generation...')
 
 		try {
 			const loadedDiff = await loadDiff()
-			setGenerationMessage('Starting Pi review generation...')
+			setGenerationMessage('Starting review generation...')
 			const job = await appRpc.request.startPiReviewGeneration({
 				pullRequest: { ...detail, diff: loadedDiff },
 			})
@@ -260,7 +272,7 @@ export function ReviewDetail({
 				setGenerationState('idle')
 				showToast({
 					title: 'Review completed',
-					description: 'Pi generated a draft review.',
+					description: 'A draft review was generated.',
 					tone: 'success',
 				})
 			}
@@ -316,7 +328,7 @@ export function ReviewDetail({
 						<Button
 							disabled={!detail || detailState === 'loading'}
 							loading={generationState === 'loading'}
-							onClick={handleGenerateWithPi}
+							onClick={handleGenerateReview}
 							size="sm"
 						>
 							Generate review
@@ -348,14 +360,14 @@ export function ReviewDetail({
 						<Card.Header>
 							<HStack justify="space-between" gap="3" w="100%">
 								<HStack gap="0.5" p="0.5" bg="gray.2" borderRadius="l1" width="fit-content">
-									<TabButton active={activeTab === 'code'} onClick={() => setActiveTab('code')}>
-										Code
-									</TabButton>
 									<TabButton
 										active={activeTab === 'summary'}
 										onClick={() => setActiveTab('summary')}
 									>
 										Summary
+									</TabButton>
+									<TabButton active={activeTab === 'code'} onClick={() => setActiveTab('code')}>
+										Code
 									</TabButton>
 									<TabButton active={activeTab === 'review'} onClick={() => setActiveTab('review')}>
 										Review
@@ -375,18 +387,18 @@ export function ReviewDetail({
 										<Button
 											disabled={!detail || detailState === 'loading'}
 											loading={generationState === 'loading'}
-											onClick={handleGenerateWithPi}
+											onClick={handleGenerateReview}
 											size="sm"
 											variant="outline"
 										>
-											Regenerate with Pi
+											Regenerate review
 										</Button>
 									</HStack>
 								) : null}
 							</HStack>
 						</Card.Header>
 						<Card.Body minH="0" overflow="hidden">
-							{activeTab === 'code' && (
+							<Box display={activeTab === 'code' ? 'block' : 'none'} h="100%" minH="0">
 								<CodeTab
 									colorMode={colorMode}
 									detail={detail}
@@ -397,9 +409,11 @@ export function ReviewDetail({
 									inlineComments={generatedReview?.inlineComments ?? []}
 									onLoadDiff={loadDiff}
 								/>
-							)}
-							{activeTab === 'summary' && <SummaryTab detail={detail} />}
-							{activeTab === 'review' && (
+							</Box>
+							<Box display={activeTab === 'summary' ? 'block' : 'none'} h="100%" minH="0">
+								<SummaryTab detail={detail} />
+							</Box>
+							<Box display={activeTab === 'review' ? 'block' : 'none'} h="100%" minH="0">
 								<ReviewTab
 									generationError={generationError}
 									generationMessage={generationMessage}
@@ -409,7 +423,7 @@ export function ReviewDetail({
 									onPublishFinding={handlePublishFinding}
 									publishingFindingIds={publishingFindingIds}
 								/>
-							)}
+							</Box>
 						</Card.Body>
 					</Card.Root>
 				</Stack>
@@ -481,12 +495,23 @@ function CodeTab({
 }) {
 	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
 
-	if (detailState === 'loading') {
+	useEffect(() => {
+		if (!detail) {
+			setSelectedFilePath(null)
+			return
+		}
+
+		setSelectedFilePath(detail.files[0]?.path ?? null)
+	}, [detail?.repo, detail?.pullRequestNumber, detail?.headSha, detail?.files])
+
+	if (detailState === 'loading' || !detail || (!diff && !diffError)) {
 		return (
-			<StatusCard
-				title="Loading pull request metadata"
-				body="Loading PR summary and file list..."
-			/>
+			<Stack h="100%" placeContent="center" alignItems="center" textAlign="center">
+				<StatusCard
+					title="Loading pull request"
+					body="Loading PR metadata, changed files, and diff before showing the code view..."
+				/>
+			</Stack>
 		)
 	}
 
@@ -534,13 +559,20 @@ function CodeTab({
 				minW="0"
 				overflow="auto"
 			>
-				{diff ? (
+				{diff && selectedFilePath ? (
 					<DiffViewer
 						colorMode={colorMode}
 						inlineComments={inlineComments}
 						patch={diff}
 						selectedFilePath={selectedFilePath}
 					/>
+				) : diff ? (
+					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
+						<StatusCard
+							title="No file selected"
+							body="Choose a changed file from the tree to render its diff."
+						/>
+					</Stack>
 				) : (
 					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
 						<StatusCard

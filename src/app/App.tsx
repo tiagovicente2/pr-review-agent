@@ -9,7 +9,7 @@ import type {
 	GitHubPullRequestDetails,
 	GitHubReviewRequest,
 } from '@/shared/github'
-import type { AppSettings, ColorModePreference } from '@/shared/settings'
+import type { AgentAvailability, AppSettings, ColorModePreference } from '@/shared/settings'
 import { appRpc } from './rpc'
 import type { AsyncState, ColorMode } from './types'
 import { getErrorMessage } from './utils'
@@ -20,21 +20,20 @@ const emptyAuthStatus: GitHubAuthStatus = {
 	message: 'Checking GitHub CLI status...',
 }
 
-const onboardingStorageKey = 'pr-review-agent:onboarding-complete'
-
 function App() {
 	const [colorModePreference, setColorModePreference] = useState<ColorModePreference>('system')
 	const [systemColorMode, setSystemColorMode] = useState<ColorMode>('light')
 	const [showSettings, setShowSettings] = useState(false)
-	const [onboardingComplete, setOnboardingComplete] = useState(
-		() => window.localStorage.getItem(onboardingStorageKey) === 'true',
-	)
+	const [onboardingComplete, setOnboardingComplete] = useState(false)
 	const [authStatus, setAuthStatus] = useState<GitHubAuthStatus | null>(null)
 	const [authState, setAuthState] = useState<AsyncState>('loading')
 	const [connectState, setConnectState] = useState<AsyncState>('idle')
 	const [loginOutput, setLoginOutput] = useState('')
+	const [agentAvailability, setAgentAvailability] = useState<AgentAvailability[]>([])
+	const [agentsState, setAgentsState] = useState<AsyncState>('idle')
 	const [reviews, setReviews] = useState<GitHubReviewRequest[]>([])
 	const [reviewsState, setReviewsState] = useState<AsyncState>('idle')
+	const [reviewPrState, setReviewPrState] = useState<AsyncState>('idle')
 	const [reviewsError, setReviewsError] = useState('')
 	const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
 	const [detail, setDetail] = useState<GitHubPullRequestDetails | null>(null)
@@ -81,7 +80,10 @@ function App() {
 	useEffect(() => {
 		appRpc.request
 			.getAppSettings()
-			.then((settings) => setColorModePreference(settings.colorMode))
+			.then((settings) => {
+				setColorModePreference(settings.colorMode)
+				setOnboardingComplete(settings.onboardingComplete)
+			})
 			.catch(() => undefined)
 	}, [])
 
@@ -89,9 +91,9 @@ function App() {
 		setColorModePreference(settings.colorMode)
 	}
 
-	const completeOnboarding = () => {
-		window.localStorage.setItem(onboardingStorageKey, 'true')
-		setOnboardingComplete(true)
+	const completeOnboarding = async () => {
+		const settings = await appRpc.request.completeOnboarding()
+		setOnboardingComplete(settings.onboardingComplete)
 	}
 
 	const loadReviewRequests = useCallback(async () => {
@@ -101,11 +103,23 @@ function App() {
 		try {
 			const items = await appRpc.request.listGitHubReviewRequests()
 			setReviews(items)
-			setSelectedReviewId((current) => current ?? items[0]?.id ?? null)
+			setSelectedReviewId((current) =>
+				current && items.some((item) => item.id === current) ? current : items[0]?.id ?? null,
+			)
 			setReviewsState('idle')
 		} catch (error) {
 			setReviewsError(getErrorMessage(error))
 			setReviewsState('error')
+		}
+	}, [])
+
+	const refreshAgents = useCallback(async () => {
+		setAgentsState('loading')
+		try {
+			setAgentAvailability(await appRpc.request.listAgentAvailability())
+			setAgentsState('idle')
+		} catch {
+			setAgentsState('error')
 		}
 	}, [])
 
@@ -131,7 +145,8 @@ function App() {
 
 	useEffect(() => {
 		void refreshAuth()
-	}, [refreshAuth])
+		void refreshAgents()
+	}, [refreshAuth, refreshAgents])
 
 	const selectedReview = useMemo(
 		() => reviews.find((review) => review.id === selectedReviewId) ?? null,
@@ -181,12 +196,32 @@ function App() {
 
 		return reviews.filter((review) => {
 			const searchableText =
-				`${review.repo} ${review.pullRequestNumber} ${review.title} ${review.author}`.toLowerCase()
+				`${review.repo} ${review.pullRequestNumber} ${review.title} ${review.author} ${review.url}`.toLowerCase()
 			return searchableText.includes(normalizedQuery)
 		})
 	}, [query, reviews])
 
+	const handleReviewPr = async () => {
+		const prQuery = query.trim()
+		if (!prQuery) return
+
+		setReviewPrState('loading')
+		setReviewsError('')
+
+		try {
+			const item = await appRpc.request.getGitHubPullRequestForReview({ query: prQuery })
+			setReviews((current) => [item, ...current.filter((review) => review.id !== item.id)])
+			setSelectedReviewId(item.id)
+			setQuery('')
+			setReviewPrState('idle')
+		} catch (error) {
+			setReviewsError(getErrorMessage(error))
+			setReviewPrState('error')
+		}
+	}
+
 	const handleConnect = async () => {
+		void refreshAgents()
 		setConnectState('loading')
 		setLoginOutput('')
 
@@ -205,6 +240,11 @@ function App() {
 		}
 	}
 
+	const handleRefreshSetup = () => {
+		void refreshAuth()
+		void refreshAgents()
+	}
+
 	const currentAuthStatus = authStatus ?? emptyAuthStatus
 
 	return (
@@ -221,13 +261,15 @@ function App() {
 				<SettingsPage onBack={() => setShowSettings(false)} onSaved={handleSettingsSaved} />
 			) : !currentAuthStatus.authenticated || !onboardingComplete ? (
 				<OnboardingPage
+					agentAvailability={agentAvailability}
+					agentsState={agentsState}
 					authState={authState}
 					connectState={connectState}
 					loginOutput={loginOutput}
 					onConnect={handleConnect}
 					onComplete={completeOnboarding}
 					onOpenSettings={() => setShowSettings(true)}
-					onRefresh={refreshAuth}
+					onRefresh={handleRefreshSetup}
 					status={currentAuthStatus}
 				/>
 			) : (
@@ -242,17 +284,18 @@ function App() {
 					<ReviewInbox
 						onOpenSettings={() => setShowSettings(true)}
 						onRefresh={loadReviewRequests}
+						onReviewPr={handleReviewPr}
 						onSelectReview={setSelectedReviewId}
 						query={query}
 						reviews={filteredReviews}
 						reviewsError={reviewsError}
+						reviewPrState={reviewPrState}
 						reviewsState={reviewsState}
 						selectedReviewId={selectedReviewId}
 						setQuery={setQuery}
 						username={currentAuthStatus.username}
 					/>
 					<ReviewDetail
-						key={selectedReviewId ?? 'empty-review'}
 						colorMode={colorMode}
 						detail={detail}
 						detailError={detailError}

@@ -2,6 +2,14 @@ export type ColorModePreference = 'dark' | 'light' | 'system'
 export type CodeAgent = 'pi' | 'claude' | 'opencode'
 export type ReviewLanguage = 'english' | 'portuguese'
 
+export type AgentAvailability = {
+	agent: CodeAgent
+	label: string
+	installed: boolean
+	ready: boolean
+	message: string
+}
+
 export type AvailablePiModel = {
 	id: string
 	label: string
@@ -16,6 +24,7 @@ export type AppSettings = {
 	reviewLanguage: ReviewLanguage
 	reviewerInstructions: string
 	reviewerInstructionsPath: string
+	onboardingComplete: boolean
 }
 
 export type SaveAppSettingsParams = {

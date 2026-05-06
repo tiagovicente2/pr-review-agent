@@ -23,18 +23,18 @@ export function GeneratedFindings({
 	review: PiGeneratedReview | null
 }) {
 	if (generationState === 'loading') {
-		return <PiReviewProgress message={generationMessage} />
+		return <ReviewProgress message={generationMessage} />
 	}
 
 	if (error) {
-		return <StatusCard tone="red" title="Pi review generation failed" body={error} />
+		return <StatusCard tone="red" title="Review generation failed" body={error} />
 	}
 
 	if (!review) {
 		return (
 			<StatusCard
-				title="No Pi draft yet"
-				body="Click Generate with Pi to review the loaded GitHub diff and create a local draft."
+				title="No draft yet"
+				body="Click Generate review to review the loaded GitHub diff and create a local draft."
 			/>
 		)
 	}
@@ -59,7 +59,7 @@ export function GeneratedFindings({
 			{review.findings.length === 0 ? (
 				<StatusCard
 					title="No concrete findings"
-					body="Pi did not identify publishable findings for this diff."
+					body="The reviewer did not identify publishable findings for this diff."
 				/>
 			) : null}
 			{review.findings.map((finding) => (
@@ -74,7 +74,7 @@ export function GeneratedFindings({
 	)
 }
 
-const piReviewFrames = [
+const reviewFrames = [
 	'[=     ]',
 	'[==    ]',
 	'[ ===  ]',
@@ -85,13 +85,13 @@ const piReviewFrames = [
 	'[  === ]',
 ]
 
-function PiReviewProgress({ message }: { message?: string }) {
+function ReviewProgress({ message }: { message?: string }) {
 	const [frameIndex, setFrameIndex] = useState(0)
 
 	useEffect(() => {
 		const interval = window.setInterval(() => {
-			setFrameIndex((current) => (current + 1) % piReviewFrames.length)
-		}, 180)
+			setFrameIndex((current) => (current + 1) % reviewFrames.length)
+		}, 500)
 
 		return () => window.clearInterval(interval)
 	}, [])
@@ -99,11 +99,11 @@ function PiReviewProgress({ message }: { message?: string }) {
 	return (
 		<Stack bg="gray.2" borderRadius="l2" gap="5" minH="18rem" p="6" textAlign="center">
 			<Box fontWeight="semibold" textAlign="left">
-				Pi is reviewing this PR
+				Reviewing this PR
 			</Box>
 			<Stack alignItems="center" flex="1" gap="4" justify="center">
 				<Box color="cyan.11" fontFamily="mono" fontSize="5xl" fontWeight="bold" lineHeight="1">
-					{piReviewFrames[frameIndex]}
+					{reviewFrames[frameIndex]}
 				</Box>
 				<Box color="fg.muted" maxW="32rem" textStyle="sm">
 					{message || 'This can take a minute for larger diffs.'}

@@ -1,18 +1,29 @@
 import type { GeneratePiReviewParams, PiReviewGenerationJob } from '@/shared/review'
 import { generateReviewWithPi } from './pi-review'
+import { getReviewCodeAgent } from './settings'
 
 type StoredJob = PiReviewGenerationJob & {
 	promise?: Promise<void>
 	progressTimer?: Timer
 }
 
-const progressMessages = [
-	'Pi is reading the PR metadata and diff...',
-	'Pi is checking the changed files for correctness issues...',
-	'Pi is looking for regressions, edge cases, and risky assumptions...',
-	'Pi is drafting concise GitHub review comments...',
-	'Pi is formatting the review output...',
-]
+function getAgentLabel() {
+	const agent = getReviewCodeAgent()
+	if (agent === 'claude') return 'Claude'
+	if (agent === 'opencode') return 'opencode'
+	return 'Pi'
+}
+
+function getProgressMessages() {
+	const agent = getAgentLabel()
+	return [
+		`${agent} is reading the PR metadata and diff...`,
+		`${agent} is checking the changed files for correctness issues...`,
+		`${agent} is looking for regressions, edge cases, and risky assumptions...`,
+		`${agent} is drafting concise GitHub review comments...`,
+		`${agent} is formatting the review output...`,
+	]
+}
 
 const jobs = new Map<string, StoredJob>()
 
@@ -24,11 +35,12 @@ export function startPiReviewGeneration(params: GeneratePiReviewParams): PiRevie
 	}
 
 	const startedAt = new Date().toISOString()
+	const agent = getAgentLabel()
 	const job: StoredJob = {
 		id: jobId,
 		pullRequestKey: getPullRequestKey(params),
 		status: 'running',
-		statusMessage: 'Pi is reading the PR metadata and diff...',
+		statusMessage: `${agent} is reading the PR metadata and diff...`,
 		startedAt,
 	}
 
@@ -40,7 +52,7 @@ export function startPiReviewGeneration(params: GeneratePiReviewParams): PiRevie
 				...job,
 				progressTimer: undefined,
 				status: 'completed',
-				statusMessage: 'Pi finished the draft review.',
+				statusMessage: `${agent} finished the draft review.`,
 				review,
 				finishedAt: new Date().toISOString(),
 			})
@@ -51,7 +63,7 @@ export function startPiReviewGeneration(params: GeneratePiReviewParams): PiRevie
 				...job,
 				progressTimer: undefined,
 				status: 'failed',
-				statusMessage: 'Pi could not finish the draft review.',
+				statusMessage: `${agent} could not finish the draft review.`,
 				error: error instanceof Error ? error.message : String(error),
 				finishedAt: new Date().toISOString(),
 			})
@@ -73,6 +85,7 @@ function toPublicJob(job: StoredJob): PiReviewGenerationJob {
 
 function startProgressTimer(jobId: string, initialJob: StoredJob) {
 	let index = 0
+	const progressMessages = getProgressMessages()
 	return setInterval(() => {
 		const current = jobs.get(jobId) ?? initialJob
 		if (current.status !== 'running') {

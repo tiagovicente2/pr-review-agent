@@ -45,9 +45,9 @@ jobs:
         shell: bash
         run: |
           set -euo pipefail
-          app_dir="$(find build -mindepth 2 -maxdepth 2 -type d \( -name 'PRReviewAgent' -o -name 'PR Review Agent.app' -o -name 'PRReviewAgent.app' \) | head -n 1 || true)"
+          app_dir="$(find build -mindepth 2 -maxdepth 2 -type d \( -name 'PRReviewAgent' -o -name 'PRReviewAgent-dev' -o -name 'PR Review Agent.app' -o -name 'PRReviewAgent.app' \) | head -n 1 || true)"
           if [[ -z "$app_dir" ]]; then
-            app_dir="$(find build -mindepth 2 -maxdepth 2 -type d | grep -v -- '-dev' | head -n 1 || true)"
+            app_dir="$(find build -mindepth 2 -maxdepth 2 -type d | head -n 1 || true)"
           fi
           if [[ -z "$app_dir" ]]; then
             echo "Could not locate built app under build/" >&2

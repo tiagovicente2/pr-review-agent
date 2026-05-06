@@ -18,39 +18,6 @@ PR Review Agent helps you load GitHub PRs, inspect their summary and diff, gener
 - Local saved generated reviews.
 - Explicit publish flow for generated inline comments.
 
-## Requirements
-
-- [Bun](https://bun.sh/)
-- [GitHub CLI](https://cli.github.com/) authenticated with access to the target repositories
-- At least one supported review agent installed and authenticated:
-  - `pi`
-  - `claude`
-  - `opencode`
-
-Authenticate GitHub with either the in-app onboarding flow or:
-
-```bash
-gh auth login --web --git-protocol https
-```
-
-## Setup
-
-```bash
-bun install
-bun run typecheck
-bun run build
-```
-
-## Development
-
-```bash
-# Electrobun watch mode
-bun run dev
-
-# Vite HMR + Electrobun
-bun run dev:hmr
-```
-
 ## Install from GitHub Releases
 
 Linux/macOS:
@@ -63,6 +30,44 @@ Windows PowerShell:
 
 ```powershell
 irm https://raw.githubusercontent.com/tiagovicente2/pr-review-agent/main/scripts/install.ps1 | iex
+```
+
+## Requirements
+
+- [GitHub CLI](https://cli.github.com/) authenticated with access to the target repositories
+- At least one supported review agent installed and authenticated:
+  - `pi`
+  - `claude`
+  - `opencode`
+
+Authenticate GitHub with either the in-app onboarding flow or:
+
+```bash
+gh auth login --web --git-protocol https
+```
+
+## Safety
+
+The app does not submit GitHub reviews automatically. Generated output stays local until you explicitly publish selected comments in the UI.
+
+## Development
+
+Development requires [Bun](https://bun.sh/).
+
+```bash
+bun install
+bun run typecheck
+bun run build
+```
+
+Run locally:
+
+```bash
+# Electrobun watch mode
+bun run dev
+
+# Vite HMR + Electrobun
+bun run dev:hmr
 ```
 
 ## Build the desktop app locally
@@ -93,7 +98,3 @@ GitHub Actions builds Linux, macOS, and Windows artifacts and attaches them to t
 - `bun run typecheck` — generate Panda output and run TypeScript checks
 - `bun run build` — generate Panda output and build the React renderer
 - `bun run build:app` — generate Panda output and build the Electrobun app
-
-## Safety
-
-The app does not submit GitHub reviews automatically. Generated output stays local until you explicitly publish selected comments in the UI.

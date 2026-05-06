@@ -51,13 +51,38 @@ bun run dev
 bun run dev:hmr
 ```
 
-## Build the desktop app
+## Install from GitHub Releases
+
+Linux/macOS:
+
+```bash
+curl -fsSL https://raw.githubusercontent.com/tiagovicente2/pr-review-agent/main/scripts/install.sh | bash
+```
+
+Windows PowerShell:
+
+```powershell
+irm https://raw.githubusercontent.com/tiagovicente2/pr-review-agent/main/scripts/install.ps1 | iex
+```
+
+## Build the desktop app locally
 
 ```bash
 bun run build:app
 ```
 
 The packaged app is written under `build/`.
+
+## Publish a release
+
+Create and push a version tag:
+
+```bash
+git tag v0.1.0
+git push origin v0.1.0
+```
+
+GitHub Actions builds Linux, macOS, and Windows artifacts and attaches them to the release.
 
 ## Scripts
 

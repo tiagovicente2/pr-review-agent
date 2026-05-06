@@ -1,0 +1,92 @@
+name: release
+
+on:
+  push:
+    tags:
+      - 'v*'
+  workflow_dispatch:
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    name: Build ${{ matrix.artifact }}
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            artifact: linux-x64
+            archive: tar.gz
+          - os: macos-13
+            artifact: macos-x64
+            archive: tar.gz
+          - os: macos-latest
+            artifact: macos-arm64
+            archive: tar.gz
+          - os: windows-latest
+            artifact: windows-x64
+            archive: zip
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: oven-sh/setup-bun@v2
+        with:
+          bun-version: latest
+
+      - run: bun install --frozen-lockfile
+      - run: bun run build:app
+
+      - name: Locate app bundle
+        id: locate
+        shell: bash
+        run: |
+          set -euo pipefail
+          app_dir="$(find build -mindepth 2 -maxdepth 2 -type d \( -name 'PRReviewAgent' -o -name 'PR Review Agent.app' -o -name 'PRReviewAgent.app' \) | head -n 1 || true)"
+          if [[ -z "$app_dir" ]]; then
+            app_dir="$(find build -mindepth 2 -maxdepth 2 -type d | grep -v -- '-dev' | head -n 1 || true)"
+          fi
+          if [[ -z "$app_dir" ]]; then
+            echo "Could not locate built app under build/" >&2
+            find build -maxdepth 4 -print >&2
+            exit 1
+          fi
+          echo "app_dir=$app_dir" >> "$GITHUB_OUTPUT"
+          echo "app_name=$(basename "$app_dir")" >> "$GITHUB_OUTPUT"
+
+      - name: Package tar.gz
+        if: matrix.archive == 'tar.gz'
+        shell: bash
+        run: |
+          set -euo pipefail
+          tar -czf "pr-review-agent-${{ matrix.artifact }}.tar.gz" -C "$(dirname '${{ steps.locate.outputs.app_dir }}')" "${{ steps.locate.outputs.app_name }}"
+
+      - name: Package zip
+        if: matrix.archive == 'zip'
+        shell: pwsh
+        run: |
+          Compress-Archive -Path "${{ steps.locate.outputs.app_dir }}" -DestinationPath "pr-review-agent-${{ matrix.artifact }}.zip" -Force
+
+      - uses: actions/upload-artifact@v4
+        with:
+          name: pr-review-agent-${{ matrix.artifact }}
+          path: pr-review-agent-${{ matrix.artifact }}.*
+
+  publish:
+    name: Publish GitHub Release
+    needs: build
+    runs-on: ubuntu-latest
+    if: startsWith(github.ref, 'refs/tags/')
+    steps:
+      - uses: actions/download-artifact@v4
+        with:
+          path: artifacts
+          merge-multiple: true
+
+      - uses: softprops/action-gh-release@v2
+        with:
+          files: artifacts/*
+          generate_release_notes: true

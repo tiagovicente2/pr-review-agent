@@ -1,6 +1,7 @@
 import { StrictMode } from 'react'
 import { createRoot } from 'react-dom/client'
 import App from '@/app/App'
+import { ToastProvider } from '@/app/toast'
 import 'styled-system/styles.css'
 import './index.css'
 
@@ -12,6 +13,8 @@ if (!rootElement) {
 
 createRoot(rootElement).render(
 	<StrictMode>
-		<App />
+		<ToastProvider>
+			<App />
+		</ToastProvider>
 	</StrictMode>,
 )

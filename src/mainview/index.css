@@ -11,3 +11,26 @@ body {
 	margin: 0;
 	overflow: hidden;
 }
+
+* {
+	scrollbar-color: var(--colors-gray-7) transparent;
+	scrollbar-width: thin;
+}
+
+*::-webkit-scrollbar {
+	height: 8px;
+	width: 8px;
+}
+
+*::-webkit-scrollbar-track {
+	background: transparent;
+}
+
+*::-webkit-scrollbar-thumb {
+	background: var(--colors-gray-7);
+	border-radius: 999px;
+}
+
+*::-webkit-scrollbar-thumb:hover {
+	background: var(--colors-gray-8);
+}

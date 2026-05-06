@@ -13,7 +13,7 @@ import type {
 	PublishPiReviewCommentResult,
 	PublishPiReviewCommentsParams,
 } from './review'
-import type { AppSettings, SaveAppSettingsParams } from './settings'
+import type { AppSettings, AvailablePiModel, SaveAppSettingsParams } from './settings'
 
 export type AppRPCSchema = {
 	bun: {
@@ -25,6 +25,10 @@ export type AppRPCSchema = {
 			saveAppSettings: {
 				params: SaveAppSettingsParams
 				response: AppSettings
+			}
+			listAvailablePiModels: {
+				params: undefined
+				response: AvailablePiModel[]
 			}
 			getGitHubAuthStatus: {
 				params: undefined

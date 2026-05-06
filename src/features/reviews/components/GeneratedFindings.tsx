@@ -97,16 +97,18 @@ function PiReviewProgress({ message }: { message?: string }) {
 	}, [])
 
 	return (
-		<Stack bg="gray.2" borderRadius="l2" gap="3" p="4" textAlign="left">
-			<HStack gap="3">
-				<Box color="cyan.11" fontFamily="mono" textStyle="sm">
+		<Stack bg="gray.2" borderRadius="l2" gap="5" minH="18rem" p="6" textAlign="center">
+			<Box fontWeight="semibold" textAlign="left">
+				Pi is reviewing this PR
+			</Box>
+			<Stack alignItems="center" flex="1" gap="4" justify="center">
+				<Box color="cyan.11" fontFamily="mono" fontSize="5xl" fontWeight="bold" lineHeight="1">
 					{piReviewFrames[frameIndex]}
 				</Box>
-				<Box fontWeight="semibold">Pi is reviewing this PR</Box>
-			</HStack>
-			<Box color="fg.muted" textStyle="sm">
-				{message || 'This can take a minute for larger diffs.'}
-			</Box>
+				<Box color="fg.muted" maxW="32rem" textStyle="sm">
+					{message || 'This can take a minute for larger diffs.'}
+				</Box>
+			</Stack>
 		</Stack>
 	)
 }
@@ -129,15 +131,17 @@ function EditableFindingCard({
 	}
 
 	return (
-		<Card.Root variant="outline">
-			<Card.Body p="4">
+		<Card.Root maxW="100%" overflow="hidden" variant="outline">
+			<Card.Body maxW="100%" overflow="hidden" p="4">
 				<Grid
 					gridTemplateColumns={
 						hasFix ? { base: '1fr', xl: 'minmax(0, 0.9fr) minmax(0, 1.1fr)' } : '1fr'
 					}
 					gap="5"
+					maxW="100%"
+					overflow="hidden"
 				>
-					<Stack gap="3" minW="0">
+					<Stack gap="3" minW="0" overflow="hidden">
 						<HStack justify="space-between" gap="3">
 							<Badge colorPalette={severityColorPalette(finding.severity)}>
 								{finding.severity}
@@ -175,7 +179,7 @@ function EditableFindingCard({
 						</HStack>
 					</Stack>
 					{hasFix ? (
-						<Box minW="0">
+						<Box minW="0" overflow="hidden">
 							<DiffCodeBlock diff={finding.fixSuggestion ?? ''} />
 						</Box>
 					) : null}
@@ -197,6 +201,8 @@ function DiffCodeBlock({ diff }: { diff: string }) {
 	return (
 		<Box
 			as="pre"
+			maxW="100%"
+			minW="0"
 			className={css({
 				backgroundColor: 'gray.1',
 				borderColor: 'border.default',
@@ -205,6 +211,7 @@ function DiffCodeBlock({ diff }: { diff: string }) {
 				fontFamily: 'mono',
 				fontSize: 'xs',
 				lineHeight: '1.7',
+				maxWidth: '100%',
 				overflowX: 'auto',
 				padding: '3',
 			})}

@@ -12,7 +12,7 @@ import { publishPiReviewComment, publishPiReviewComments } from './services/pi-p
 import { generateReviewWithPi } from './services/pi-review'
 import { getPiReviewGenerationJob, startPiReviewGeneration } from './services/pi-review-jobs'
 import { getSavedGeneratedReview } from './services/review-store'
-import { getAppSettings, saveAppSettings } from './services/settings'
+import { getAppSettings, listAvailablePiModels, saveAppSettings } from './services/settings'
 import {
 	closeWindow,
 	minimizeWindow,
@@ -45,6 +45,7 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 		requests: {
 			getAppSettings,
 			saveAppSettings,
+			listAvailablePiModels,
 			getGitHubAuthStatus,
 			startGitHubLogin,
 			listGitHubReviewRequests,

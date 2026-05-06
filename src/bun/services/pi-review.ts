@@ -1,6 +1,6 @@
 import type { GeneratePiReviewParams, PiGeneratedReview, PiReviewFinding } from '@/shared/review'
 import { saveGeneratedReview } from './review-store'
-import { getReviewerInstructions, getReviewLanguage } from './settings'
+import { getReviewerInstructions, getReviewLanguage, getReviewModel } from './settings'
 
 type CommandResult = {
 	exitCode: number
@@ -12,10 +12,12 @@ const MAX_DIFF_CHARS = 180_000
 const PI_TIMEOUT_MS = 10 * 60 * 1000
 
 async function runPiReview(prompt: string): Promise<CommandResult> {
+	const model = getReviewModel()
 	const proc = Bun.spawn(
 		[
 			'pi',
 			'-p',
+			...(model && model !== 'pi-agent' ? ['--model', model] : []),
 			'--no-tools',
 			'--no-context-files',
 			'--no-session',
@@ -70,6 +72,7 @@ Automation-specific rules:
 - Never publish, approve, or request changes. Only recommend a verdict for the human reviewer.
 - Use inline comments only when a finding maps clearly to a changed line.
 - Write review comments in ${getReviewLanguage() === 'portuguese' ? 'Portuguese (Brazil)' : 'English'}.
+- When writing in Portuguese, keep technical identifiers and ecosystem terms in English. Do not literally translate names such as useEffect, hook, props, state, component, route, render, query, mutation, callback, cache, provider, bundle, commit, PR, refactor, or design system. Keep code identifiers exactly as written.
 - Use a natural human code-review tone. Avoid artificial template phrases such as "You did this", "After review", "this is correct", "wrong", or "correct".
 - Suggested comments should read like something a teammate would write on GitHub: concise, specific, and actionable.
 `
@@ -143,7 +146,7 @@ ${JSON.stringify(
 
 For every finding where a concrete fix is possible, set fixSuggestion to a small unified diff patch for the suggested change. Include file headers and hunk headers when possible, and keep it focused on only the relevant lines. Use null only when no safe code change can be suggested.
 
-Write suggestedCommentBody and inlineComments.body as natural GitHub review comments in ${getReviewLanguage() === 'portuguese' ? 'Portuguese (Brazil)' : 'English'}. Do not use before/after labels like "You did this" or "After review". Prefer direct wording such as "This fallback will also handle future origin types, which can route them to the wrong page. Could we make the postpaid case explicit and return null by default?"
+Write suggestedCommentBody and inlineComments.body as natural GitHub review comments in ${getReviewLanguage() === 'portuguese' ? 'Portuguese (Brazil)' : 'English'}. When writing in Portuguese, preserve technical names and code terms in English, for example say "Esse useEffect..." instead of translating it. Do not use before/after labels like "You did this" or "After review". Prefer direct wording such as "This fallback will also handle future origin types, which can route them to the wrong page. Could we make the postpaid case explicit and return null by default?"
 
 Unified diff:
 \`\`\`diff
@@ -171,7 +174,7 @@ export async function generateReviewWithPi(
 	const review = {
 		...parsed,
 		rawOutput: output,
-		modelLabel: 'pi-agent',
+		modelLabel: getReviewModel(),
 		generatedAt: new Date().toISOString(),
 		diffWasTruncated,
 	}

@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react'
 import { Box, Grid, HStack, Stack } from 'styled-system/jsx'
 import { appRpc } from '@/app/rpc'
+import { useToast } from '@/app/toast'
 import type { AsyncState, ColorMode } from '@/app/types'
 import { formatDate, getErrorMessage } from '@/app/utils'
 import { StatusCard, TabButton } from '@/components/common'
@@ -45,6 +46,7 @@ export function ReviewDetail({
 	const [diff, setDiff] = useState('')
 	const [diffState, setDiffState] = useState<AsyncState>('idle')
 	const [diffError, setDiffError] = useState('')
+	const { showToast } = useToast()
 
 	useEffect(() => {
 		setDiff('')
@@ -179,6 +181,11 @@ export function ReviewDetail({
 					setGeneratedReview(job.review)
 					setSummary(job.review.publishableBody || job.review.summary)
 					setGenerationState('idle')
+					showToast({
+						title: 'Review completed',
+						description: 'Pi generated a draft review.',
+						tone: 'success',
+					})
 					setGenerationJobId(null)
 				}
 
@@ -200,7 +207,7 @@ export function ReviewDetail({
 			cancelled = true
 			window.clearInterval(interval)
 		}
-	}, [generationJobId, setSummary])
+	}, [generationJobId, setSummary, showToast])
 
 	const loadDiff = async () => {
 		if (!detail) {
@@ -235,6 +242,7 @@ export function ReviewDetail({
 			return
 		}
 
+		setActiveTab('review')
 		setGenerationState('loading')
 		setGenerationError('')
 		setGenerationMessage('Loading the latest PR diff before starting Pi...')
@@ -250,6 +258,11 @@ export function ReviewDetail({
 				setGeneratedReview(job.review)
 				setSummary(job.review.publishableBody || job.review.summary)
 				setGenerationState('idle')
+				showToast({
+					title: 'Review completed',
+					description: 'Pi generated a draft review.',
+					tone: 'success',
+				})
 			}
 		} catch (error) {
 			setGenerationMessage('')
@@ -299,9 +312,19 @@ export function ReviewDetail({
 						</Box>
 					</Stack>
 
-					<Button onClick={handleOpenOnGitHub} size="sm">
-						Open on GitHub
-					</Button>
+					<HStack gap="2">
+						<Button
+							disabled={!detail || detailState === 'loading'}
+							loading={generationState === 'loading'}
+							onClick={handleGenerateWithPi}
+							size="sm"
+						>
+							Generate review
+						</Button>
+						<Button onClick={handleOpenOnGitHub} size="sm" variant="outline">
+							Open on GitHub
+						</Button>
+					</HStack>
 				</Grid>
 				{detailError ? (
 					<Box mt="4">
@@ -338,9 +361,9 @@ export function ReviewDetail({
 										Review
 									</TabButton>
 								</HStack>
-								{activeTab === 'review' ? (
+								{activeTab === 'review' && generatedReview ? (
 									<HStack gap="2">
-										{generatedReview?.findings.length ? (
+										{generatedReview.findings.length ? (
 											<Button
 												loading={publishingAll}
 												onClick={() => handlePublishAll(generatedReview.findings)}
@@ -354,9 +377,9 @@ export function ReviewDetail({
 											loading={generationState === 'loading'}
 											onClick={handleGenerateWithPi}
 											size="sm"
-											variant={generatedReview ? 'outline' : 'solid'}
+											variant="outline"
 										>
-											{generatedReview ? 'Regenerate with Pi' : 'Generate with Pi'}
+											Regenerate with Pi
 										</Button>
 									</HStack>
 								) : null}

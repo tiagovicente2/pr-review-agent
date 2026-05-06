@@ -1,22 +1,42 @@
 # PR Review Agent
 
-Electrobun + React + TypeScript desktop app scaffold for local-first, AI-assisted GitHub pull request review drafts.
+Local-first desktop app for AI-assisted GitHub pull request review drafts.
 
-## Stack
+PR Review Agent helps you load GitHub PRs, inspect their summary and diff, generate a local draft review with your preferred coding agent, and optionally publish individual review comments after explicit confirmation.
 
-- Electrobun desktop shell
-- React UI written in TypeScript
-- Vite for the renderer build
-- Park UI component snippets
-- Panda CSS for styling, recipes, and light/dark tokens
-- Diffs (`@pierre/diffs`) for GitHub patch rendering
-- Biome for linting and formatting
+## Features
+
+- Review inbox for PRs requesting your review.
+- Manual PR loading by GitHub URL, `owner/repo#123`, or `owner/repo 123`.
+- PR summary rendering with GitHub-flavored Markdown and GitHub-hosted images.
+- Lightweight code tab with changed-file tree and collapsible per-file diffs.
+- Local draft review generation with selectable agents:
+  - Pi
+  - Claude
+  - opencode
+- Agent/model settings and readiness status checks.
+- Local saved generated reviews.
+- Explicit publish flow for generated inline comments.
+
+## Requirements
+
+- [Bun](https://bun.sh/)
+- [GitHub CLI](https://cli.github.com/) authenticated with access to the target repositories
+- At least one supported review agent installed and authenticated:
+  - `pi`
+  - `claude`
+  - `opencode`
+
+Authenticate GitHub with either the in-app onboarding flow or:
+
+```bash
+gh auth login --web --git-protocol https
+```
 
 ## Setup
 
 ```bash
 bun install
-bun run check
 bun run typecheck
 bun run build
 ```
@@ -31,33 +51,13 @@ bun run dev
 bun run dev:hmr
 ```
 
-## GitHub connection
-
-The app uses the local `gh` CLI session. Install GitHub CLI, then use the in-app connect page or run:
+## Build the desktop app
 
 ```bash
-gh auth login --web --git-protocol https
+bun run build:app
 ```
 
-After authentication, the inbox loads real PRs from:
-
-```bash
-gh search prs --review-requested=@me --state=open
-```
-
-## Review generation
-
-Click **Generate with Pi** on a loaded PR. The backend sends the PR metadata and unified diff to the local Pi coding agent in print mode:
-
-```bash
-pi -p --no-tools --no-context-files --no-session
-```
-
-Pi returns structured JSON that is rendered as local draft summary text and findings. Nothing is published to GitHub automatically.
-
-## Diff rendering
-
-The PR diff viewer uses [`@pierre/diffs`](https://diffs.com/docs). GitHub patches from `gh pr diff --patch` are parsed with `parsePatchFiles` and rendered per file with the React `FileDiff` component. Pi inline comments are mapped to Diffs line annotations.
+The packaged app is written under `build/`.
 
 ## Scripts
 
@@ -69,14 +69,6 @@ The PR diff viewer uses [`@pierre/diffs`](https://diffs.com/docs). GitHub patche
 - `bun run build` — generate Panda output and build the React renderer
 - `bun run build:app` — generate Panda output and build the Electrobun app
 
-## Product direction
+## Safety
 
-The full product brief is in [`pr-review-agent-prompt.md`](./pr-review-agent-prompt.md). The current scaffold includes a static PR review inbox/detail UI so the service layers can be implemented incrementally:
-
-1. `gh` CLI integration for auth, review requests, PR metadata, files, and diffs.
-2. OpenAI structured JSON review generation.
-3. SQLite persistence for drafts, stale detection, history, and publish attempts.
-4. Pi coding agent review generation via `pi -p --no-tools --no-session`.
-5. Explicit approval and publish flow through `gh`.
-
-The app must never submit a GitHub review without explicit in-app confirmation.
+The app does not submit GitHub reviews automatically. Generated output stays local until you explicitly publish selected comments in the UI.

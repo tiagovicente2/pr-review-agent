@@ -28,7 +28,7 @@ export function SettingsPage({
 	const [error, setError] = useState('')
 	const [availableModels, setAvailableModels] = useState<AvailablePiModel[]>([])
 	const [instructionsMode, setInstructionsMode] = useState<'raw' | 'preview'>('raw')
-	const [instructionsModeInitialized, setInstructionsModeInitialized] = useState(false)
+	const instructionsModeInitializedRef = useRef(false)
 	const { showToast } = useToast()
 
 	useEffect(() => {
@@ -39,9 +39,9 @@ export function SettingsPage({
 			.then((value) => {
 				if (cancelled) return
 				setSettings(value)
-				if (!instructionsModeInitialized) {
+				if (!instructionsModeInitializedRef.current) {
 					setInstructionsMode(value.reviewerInstructions.trim() ? 'preview' : 'raw')
-					setInstructionsModeInitialized(true)
+					instructionsModeInitializedRef.current = true
 				}
 				setState('idle')
 			})
@@ -316,7 +316,9 @@ function Select({
 				})}
 				onClick={() => setOpen((current) => !current)}
 			>
-				<span className={css({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}>
+				<span
+					className={css({ overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' })}
+				>
 					{value}
 				</span>
 				<span aria-hidden="true">▾</span>

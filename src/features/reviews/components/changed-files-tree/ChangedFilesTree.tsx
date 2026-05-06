@@ -5,10 +5,12 @@ import type { GitHubPullRequestDetails } from '@/shared/github'
 type ChangedFile = GitHubPullRequestDetails['files'][number]
 
 export function ChangedFilesTree({
+	colorMode,
 	files,
 	onSelectFile,
 	selectedFilePath,
 }: {
+	colorMode: 'light' | 'dark'
 	files: ChangedFile[]
 	onSelectFile: (path: string | null) => void
 	selectedFilePath: string | null
@@ -62,7 +64,7 @@ export function ChangedFilesTree({
 		}
 	}, [model, selectedFilePath])
 
-	return <FileTree model={model} style={treeStyle} />
+	return <FileTree key={colorMode} model={model} style={getTreeStyle(colorMode)} />
 }
 
 function getExpandableParentPaths(paths: string[]) {
@@ -76,13 +78,22 @@ function getExpandableParentPaths(paths: string[]) {
 	)
 }
 
-const treeStyle = {
-	'--trees-background-override': 'transparent',
-	'--trees-foreground-override': 'var(--colors-fg-default)',
-	'--trees-selection-background-override': 'var(--colors-gray-3)',
-	border: 'none',
-	height: '100%',
-	minHeight: '0',
-	overflow: 'hidden',
-	width: '100%',
-} as CSSProperties
+function getTreeStyle(colorMode: 'light' | 'dark') {
+	return {
+		'--trees-bg-override': 'transparent',
+		'--trees-bg-muted-override': 'var(--colors-gray.2)',
+		'--trees-fg-override': 'var(--colors-fg-default)',
+		'--trees-fg-muted-override': 'var(--colors-fg-muted)',
+		'--trees-input-bg-override': 'var(--colors-gray.2)',
+		'--trees-search-fg-override': 'var(--colors-fg-default)',
+		'--trees-selected-bg-override': 'var(--colors-gray.3)',
+		'--trees-selected-fg-override': 'var(--colors-fg-default)',
+		backgroundColor: 'transparent',
+		border: 'none',
+		colorScheme: colorMode,
+		height: '100%',
+		minHeight: '0',
+		overflow: 'hidden',
+		width: '100%',
+	} as CSSProperties
+}

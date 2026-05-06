@@ -59,7 +59,12 @@ export async function listAvailablePiModels(): Promise<AvailablePiModel[]> {
 
 	const saved = readJsonSettings()
 	const piSettings = readPiAgentSettings()
-	const searches = uniqueValues(['', saved.model, piSettings.defaultModel, piSettings.defaultProvider])
+	const searches = uniqueValues([
+		'',
+		saved.model,
+		piSettings.defaultModel,
+		piSettings.defaultProvider,
+	])
 
 	for (const search of searches) {
 		const models = parsePiModels(await listPiModelsBySearch(search))
@@ -92,7 +97,6 @@ async function listPiModelsBySearch(search: string) {
 		clearTimeout(timeout)
 	}
 }
-
 
 export function getReviewLanguage(value?: unknown): ReviewLanguage {
 	if (value !== undefined) {

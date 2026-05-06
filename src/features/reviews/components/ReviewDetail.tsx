@@ -438,9 +438,12 @@ function ReviewTab({
 	return (
 		<Stack gap="4" h="100%" minH="0" overflow="hidden">
 			<Box
+				boxSizing="border-box"
 				h="100%"
 				minH="0"
 				overflowY="auto"
+				pr="3"
+				scrollbarGutter="stable"
 				textAlign={generatedReview ? 'left' : 'center'}
 				w="100%"
 			>
@@ -514,6 +517,7 @@ function CodeTab({
 				<Card.Body minH="0" overflow="hidden">
 					{detail ? (
 						<ChangedFilesTree
+							colorMode={colorMode}
 							files={detail.files}
 							onSelectFile={setSelectedFilePath}
 							selectedFilePath={selectedFilePath}

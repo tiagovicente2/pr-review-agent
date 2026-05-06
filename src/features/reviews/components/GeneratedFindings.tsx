@@ -131,17 +131,17 @@ function EditableFindingCard({
 	}
 
 	return (
-		<Card.Root maxW="100%" overflow="hidden" variant="outline">
-			<Card.Body maxW="100%" overflow="hidden" p="4">
+		<Card.Root maxW="100%" overflow="visible" variant="outline">
+			<Card.Body maxW="100%" overflow="visible" p="4">
 				<Grid
 					gridTemplateColumns={
 						hasFix ? { base: '1fr', xl: 'minmax(0, 0.9fr) minmax(0, 1.1fr)' } : '1fr'
 					}
 					gap="5"
 					maxW="100%"
-					overflow="hidden"
+					overflow="visible"
 				>
-					<Stack gap="3" minW="0" overflow="hidden">
+					<Stack gap="3" minW="0" overflow="visible">
 						<HStack justify="space-between" gap="3">
 							<Badge colorPalette={severityColorPalette(finding.severity)}>
 								{finding.severity}
@@ -158,16 +158,21 @@ function EditableFindingCard({
 						</HStack>
 						<Box fontWeight="semibold">{finding.title}</Box>
 						<MarkdownContent>{finding.body}</MarkdownContent>
-						<Stack gap="2">
+						<Stack gap="2" minW="0">
 							<Box color="fg.muted" fontWeight="semibold" textStyle="xs">
 								PR comment
 							</Box>
 							<Textarea
+								boxSizing="border-box"
+								color="fg.default"
+								display="block"
 								minH="8rem"
 								onChange={(event) => setCommentBody(event.target.value)}
 								placeholder="Edit the comment before publishing..."
+								resize="vertical"
 								value={commentBody}
 								variant="surface"
+								w="100%"
 							/>
 						</Stack>
 						<HStack color="fg.muted" justify="space-between" textStyle="xs">

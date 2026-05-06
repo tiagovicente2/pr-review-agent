@@ -102,7 +102,15 @@ export function ReviewInbox({
 							<Card.Root
 								asChild
 								className={cx(
-									css({ cursor: 'pointer', transition: 'all 150ms ease' }),
+									css({
+										appearance: 'none',
+										bg: 'gray.surface.bg',
+										color: 'fg.default',
+										cursor: 'pointer',
+										font: 'inherit',
+										transition: 'all 150ms ease',
+										w: '100%',
+									}),
 									selected &&
 										css({ borderColor: 'cyan.8', boxShadow: '0 0 0 1px token(colors.cyan.8)' }),
 								)}

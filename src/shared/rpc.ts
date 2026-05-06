@@ -30,6 +30,10 @@ export type AppRPCSchema = {
 				params: undefined
 				response: AvailablePiModel[]
 			}
+			getSystemColorMode: {
+				params: undefined
+				response: 'dark' | 'light'
+			}
 			getGitHubAuthStatus: {
 				params: undefined
 				response: GitHubAuthStatus
@@ -102,6 +106,8 @@ export type AppRPCSchema = {
 	}
 	webview: {
 		requests: Record<never, never>
-		messages: Record<never, never>
+		messages: {
+			systemColorModeChanged: { colorMode: 'dark' | 'light' }
+		}
 	}
 }

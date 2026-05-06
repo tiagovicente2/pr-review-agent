@@ -13,6 +13,7 @@ import { generateReviewWithPi } from './services/pi-review'
 import { getPiReviewGenerationJob, startPiReviewGeneration } from './services/pi-review-jobs'
 import { getSavedGeneratedReview } from './services/review-store'
 import { getAppSettings, listAvailablePiModels, saveAppSettings } from './services/settings'
+import { getSystemColorMode, startSystemColorModeWatcher } from './services/system-appearance'
 import {
 	closeWindow,
 	minimizeWindow,
@@ -46,6 +47,7 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 			getAppSettings,
 			saveAppSettings,
 			listAvailablePiModels,
+			getSystemColorMode,
 			getGitHubAuthStatus,
 			startGitHubLogin,
 			listGitHubReviewRequests,
@@ -82,5 +84,9 @@ const mainWindow = new BrowserWindow({
 })
 
 setMainWindow(mainWindow)
+
+void startSystemColorModeWatcher((colorMode) => {
+	appRpc.send.systemColorModeChanged({ colorMode })
+})
 
 console.log('PR Review Agent started', mainWindow.id)

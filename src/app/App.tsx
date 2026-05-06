@@ -24,7 +24,7 @@ const onboardingStorageKey = 'pr-review-agent:onboarding-complete'
 
 function App() {
 	const [colorModePreference, setColorModePreference] = useState<ColorModePreference>('system')
-	const [systemColorMode, setSystemColorMode] = useState<ColorMode>('dark')
+	const [systemColorMode, setSystemColorMode] = useState<ColorMode>('light')
 	const [showSettings, setShowSettings] = useState(false)
 	const [onboardingComplete, setOnboardingComplete] = useState(
 		() => window.localStorage.getItem(onboardingStorageKey) === 'true',
@@ -47,12 +47,36 @@ function App() {
 		colorModePreference === 'system' ? systemColorMode : colorModePreference
 
 	useEffect(() => {
+		let cancelled = false
 		const media = window.matchMedia('(prefers-color-scheme: dark)')
-		const sync = () => setSystemColorMode(media.matches ? 'dark' : 'light')
-		sync()
-		media.addEventListener('change', sync)
-		return () => media.removeEventListener('change', sync)
+		const syncFromMediaQuery = () => setSystemColorMode(media.matches ? 'dark' : 'light')
+		const syncFromNative = () => {
+			appRpc.request
+				.getSystemColorMode()
+				.then((nativeColorMode) => {
+					if (!cancelled) setSystemColorMode(nativeColorMode)
+				})
+				.catch(syncFromMediaQuery)
+		}
+		const handleNativeChange = ({ colorMode }: { colorMode: ColorMode }) => {
+			setSystemColorMode(colorMode)
+		}
+
+		syncFromNative()
+		media.addEventListener('change', syncFromMediaQuery)
+		appRpc.addMessageListener('systemColorModeChanged', handleNativeChange)
+		return () => {
+			cancelled = true
+			media.removeEventListener('change', syncFromMediaQuery)
+			appRpc.removeMessageListener('systemColorModeChanged', handleNativeChange)
+		}
 	}, [])
+
+	useEffect(() => {
+		document.documentElement.classList.toggle('dark', colorMode === 'dark')
+		document.documentElement.classList.toggle('light', colorMode === 'light')
+		document.documentElement.style.colorScheme = colorMode
+	}, [colorMode])
 
 	useEffect(() => {
 		appRpc.request

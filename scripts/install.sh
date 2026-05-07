@@ -45,11 +45,16 @@ if [[ "$platform" == "linux" ]]; then
   ln -sfn "$launcher" "$BIN_DIR/$APP_NAME"
 
   mkdir -p "$DESKTOP_DIR"
+  icon_path="$INSTALL_DIR/Resources/appIcon.png"
+  if [[ ! -f "$icon_path" ]]; then
+    icon_path="$INSTALL_DIR/Resources/app/icon.png"
+  fi
   cat > "$DESKTOP_DIR/pr-review-agent.desktop" <<EOF
 [Desktop Entry]
 Name=PR Review Agent
 Comment=AI-assisted GitHub pull request review drafts
 Exec=$launcher
+Icon=$icon_path
 Terminal=false
 Type=Application
 Categories=Development;

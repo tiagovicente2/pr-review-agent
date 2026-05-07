@@ -83,8 +83,8 @@ The packaged app is written under `build/`.
 Create and push a version tag:
 
 ```bash
-git tag v0.1.0
-git push origin v0.1.0
+git tag v0.1.1
+git push origin v0.1.1
 ```
 
 GitHub Actions builds Linux, macOS, and Windows artifacts and attaches them to the release.

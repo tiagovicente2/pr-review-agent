@@ -34,6 +34,9 @@ try {
   $Shortcut.TargetPath = $Launcher.FullName
   $Shortcut.WorkingDirectory = Split-Path $Launcher.FullName
   $Shortcut.Description = 'AI-assisted GitHub pull request review drafts'
+  $Icon = Get-ChildItem -Path $InstallDir -Recurse -File -Filter 'appIcon.ico' | Select-Object -First 1
+  if (-not $Icon) { $Icon = Get-ChildItem -Path $InstallDir -Recurse -File -Filter 'icon.ico' | Select-Object -First 1 }
+  if ($Icon) { $Shortcut.IconLocation = $Icon.FullName }
   $Shortcut.Save()
 
   Log "installed to $InstallDir"

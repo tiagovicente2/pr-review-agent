@@ -44,12 +44,14 @@ export function ReviewDetail({
 	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set())
 	const [generationJobId, setGenerationJobId] = useState<string | null>(null)
 	const [diff, setDiff] = useState('')
+	const [firstDiffFilePath, setFirstDiffFilePath] = useState<string | null>(null)
 	const [diffState, setDiffState] = useState<AsyncState>('idle')
 	const [diffError, setDiffError] = useState('')
 	const { showToast } = useToast()
 
 	useEffect(() => {
 		setDiff('')
+		setFirstDiffFilePath(null)
 		setDiffState('idle')
 		setDiffError('')
 		setGeneratedReview(null)
@@ -159,6 +161,7 @@ export function ReviewDetail({
 			.then((result) => {
 				if (!cancelled) {
 					setDiff(result.diff)
+					setFirstDiffFilePath(getFirstDiffFilePath(result.diff))
 					setDiffState('idle')
 				}
 			})
@@ -238,6 +241,7 @@ export function ReviewDetail({
 				repo: detail.repo,
 			})
 			setDiff(result.diff)
+			setFirstDiffFilePath(getFirstDiffFilePath(result.diff))
 			setDiffState('idle')
 			return result.diff
 		} catch (error) {
@@ -406,6 +410,7 @@ export function ReviewDetail({
 									diff={diff}
 									diffError={diffError}
 									diffState={diffState}
+									firstDiffFilePath={firstDiffFilePath}
 									inlineComments={generatedReview?.inlineComments ?? []}
 									onLoadDiff={loadDiff}
 								/>
@@ -430,6 +435,11 @@ export function ReviewDetail({
 			</Grid>
 		</Box>
 	)
+}
+
+function getFirstDiffFilePath(diff: string) {
+	const match = diff.match(/^diff --git a\/(.*?) b\/(.*?)$/m)
+	return match?.[2] ?? match?.[1] ?? null
 }
 
 function ReviewTab({
@@ -481,6 +491,7 @@ function CodeTab({
 	diff,
 	diffError,
 	diffState,
+	firstDiffFilePath,
 	inlineComments,
 	onLoadDiff,
 }: {
@@ -490,6 +501,7 @@ function CodeTab({
 	diff: string
 	diffError: string
 	diffState: AsyncState
+	firstDiffFilePath: string | null
 	inlineComments: PiInlineComment[]
 	onLoadDiff: () => Promise<string>
 }) {
@@ -501,8 +513,8 @@ function CodeTab({
 			return
 		}
 
-		setSelectedFilePath(detail.files[0]?.path ?? null)
-	}, [detail?.repo, detail?.pullRequestNumber, detail?.headSha, detail?.files])
+		setSelectedFilePath(firstDiffFilePath ?? detail.files[0]?.path ?? null)
+	}, [detail, firstDiffFilePath])
 
 	if (detailState === 'loading' || !detail || (!diff && !diffError)) {
 		return (

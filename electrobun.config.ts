@@ -4,7 +4,7 @@ export default {
 	app: {
 		name: 'PR Review Agent',
 		identifier: 'dev.local.pr-review-agent',
-		version: '0.1.1',
+		version: '0.1.2',
 	},
 	build: {
 		copy: {

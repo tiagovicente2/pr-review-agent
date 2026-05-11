@@ -50,17 +50,16 @@ export function ChangedFilesTree({
 	}, [gitStatus, model, paths])
 
 	useEffect(() => {
-		return model.subscribe(() => {
-			const focusedPath = model.getFocusedPath()
-			if (focusedPath && statsByPath.has(focusedPath)) {
-				onSelectFile(focusedPath)
+		for (const selectedPath of model.getSelectedPaths()) {
+			if (selectedPath !== selectedFilePath) {
+				model.getItem(selectedPath)?.deselect()
 			}
-		})
-	}, [model, onSelectFile, statsByPath])
+		}
 
-	useEffect(() => {
 		if (selectedFilePath) {
-			model.getItem(selectedFilePath)?.select()
+			const item = model.getItem(selectedFilePath)
+			item?.select()
+			item?.focus()
 		}
 	}, [model, selectedFilePath])
 

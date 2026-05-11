@@ -1,18 +1,19 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
 import { Box, Grid } from 'styled-system/jsx'
+import { useAgentAvailability } from '@/app/hooks/useAgentAvailability'
+import { useColorMode } from '@/app/hooks/useColorMode'
+import { useErrorLog } from '@/app/hooks/useErrorLog'
+import { usePullRequestDetails } from '@/app/hooks/usePullRequestDetails'
+import { isPullRequestQuery, useReviewRequests } from '@/app/hooks/useReviewRequests'
 import { OnboardingPage } from '@/features/auth/components/OnboardingPage'
+import { ErrorLogPage } from '@/features/errors/components/ErrorLogPage'
 import { ReviewDetail } from '@/features/reviews/components/ReviewDetail'
 import { ReviewInbox } from '@/features/reviews/components/ReviewInbox'
 import { SettingsPage } from '@/features/settings/components/SettingsPage'
-import type {
-	GitHubAuthStatus,
-	GitHubPullRequestDetails,
-	GitHubReviewRequest,
-} from '@/shared/github'
-import type { AgentAvailability, AppSettings, ColorModePreference } from '@/shared/settings'
+import type { GitHubAuthStatus } from '@/shared/github'
+import type { AppSettings } from '@/shared/settings'
 import { appRpc } from './rpc'
-import type { AsyncState, ColorMode } from './types'
-import { getErrorMessage } from './utils'
+import type { AsyncState } from './types'
 
 const emptyAuthStatus: GitHubAuthStatus = {
 	ghInstalled: false,
@@ -21,61 +22,40 @@ const emptyAuthStatus: GitHubAuthStatus = {
 }
 
 function App() {
-	const [colorModePreference, setColorModePreference] = useState<ColorModePreference>('system')
-	const [systemColorMode, setSystemColorMode] = useState<ColorMode>('light')
 	const [showSettings, setShowSettings] = useState(false)
+	const [showErrorLog, setShowErrorLog] = useState(false)
 	const [onboardingComplete, setOnboardingComplete] = useState(false)
 	const [authStatus, setAuthStatus] = useState<GitHubAuthStatus | null>(null)
 	const [authState, setAuthState] = useState<AsyncState>('loading')
 	const [connectState, setConnectState] = useState<AsyncState>('idle')
 	const [loginOutput, setLoginOutput] = useState('')
-	const [agentAvailability, setAgentAvailability] = useState<AgentAvailability[]>([])
-	const [agentsState, setAgentsState] = useState<AsyncState>('idle')
-	const [reviews, setReviews] = useState<GitHubReviewRequest[]>([])
-	const [reviewsState, setReviewsState] = useState<AsyncState>('idle')
-	const [reviewPrState, setReviewPrState] = useState<AsyncState>('idle')
-	const [reviewsError, setReviewsError] = useState('')
-	const [selectedReviewId, setSelectedReviewId] = useState<string | null>(null)
-	const [detail, setDetail] = useState<GitHubPullRequestDetails | null>(null)
-	const [detailState, setDetailState] = useState<AsyncState>('idle')
-	const [detailError, setDetailError] = useState('')
 	const [query, setQuery] = useState('')
+	const [debouncedQuery, setDebouncedQuery] = useState('')
 	const [, setSummary] = useState('')
 
-	const colorMode: ColorMode =
-		colorModePreference === 'system' ? systemColorMode : colorModePreference
-
-	useEffect(() => {
-		let cancelled = false
-		const media = window.matchMedia('(prefers-color-scheme: dark)')
-		const syncFromMediaQuery = () => setSystemColorMode(media.matches ? 'dark' : 'light')
-		const syncFromNative = () => {
-			appRpc.request
-				.getSystemColorMode()
-				.then((nativeColorMode) => {
-					if (!cancelled) setSystemColorMode(nativeColorMode)
-				})
-				.catch(syncFromMediaQuery)
-		}
-		const handleNativeChange = ({ colorMode }: { colorMode: ColorMode }) => {
-			setSystemColorMode(colorMode)
-		}
-
-		syncFromNative()
-		media.addEventListener('change', syncFromMediaQuery)
-		appRpc.addMessageListener('systemColorModeChanged', handleNativeChange)
-		return () => {
-			cancelled = true
-			media.removeEventListener('change', syncFromMediaQuery)
-			appRpc.removeMessageListener('systemColorModeChanged', handleNativeChange)
-		}
+	const { colorMode, setPreference: setColorModePreference } = useColorMode()
+	const openErrorLog = useCallback(() => {
+		setShowSettings(false)
+		setShowErrorLog(true)
 	}, [])
+	const { clearErrors, dismissError, errors: errorLogs, logError } = useErrorLog(openErrorLog)
 
-	useEffect(() => {
-		document.documentElement.classList.toggle('dark', colorMode === 'dark')
-		document.documentElement.classList.toggle('light', colorMode === 'light')
-		document.documentElement.style.colorScheme = colorMode
-	}, [colorMode])
+	const { agentAvailability, agentsState, refreshAgents } = useAgentAvailability()
+	const {
+		activeSearchQuery,
+		loadReviewRequests,
+		reviewPullRequest,
+		reviewPrState,
+		reviews,
+		reviewsState,
+		searchActive,
+		searchMode,
+		searchPullRequests,
+		selectedReview,
+		selectedReviewId,
+		setSearchMode,
+		setSelectedReviewId,
+	} = useReviewRequests({ logError })
 
 	useEffect(() => {
 		appRpc.request
@@ -85,7 +65,7 @@ function App() {
 				setOnboardingComplete(settings.onboardingComplete)
 			})
 			.catch(() => undefined)
-	}, [])
+	}, [setColorModePreference])
 
 	const handleSettingsSaved = (settings: AppSettings) => {
 		setColorModePreference(settings.colorMode)
@@ -95,33 +75,6 @@ function App() {
 		const settings = await appRpc.request.completeOnboarding()
 		setOnboardingComplete(settings.onboardingComplete)
 	}
-
-	const loadReviewRequests = useCallback(async () => {
-		setReviewsState('loading')
-		setReviewsError('')
-
-		try {
-			const items = await appRpc.request.listGitHubReviewRequests()
-			setReviews(items)
-			setSelectedReviewId((current) =>
-				current && items.some((item) => item.id === current) ? current : items[0]?.id ?? null,
-			)
-			setReviewsState('idle')
-		} catch (error) {
-			setReviewsError(getErrorMessage(error))
-			setReviewsState('error')
-		}
-	}, [])
-
-	const refreshAgents = useCallback(async () => {
-		setAgentsState('loading')
-		try {
-			setAgentAvailability(await appRpc.request.listAgentAvailability())
-			setAgentsState('idle')
-		} catch {
-			setAgentsState('error')
-		}
-	}, [])
 
 	const refreshAuth = useCallback(async () => {
 		setAuthState('loading')
@@ -137,87 +90,55 @@ function App() {
 			setAuthStatus({
 				ghInstalled: false,
 				authenticated: false,
-				error: getErrorMessage(error),
+				error: logError('Could not check GitHub auth', error, 'Onboarding'),
 			})
 			setAuthState('error')
 		}
-	}, [loadReviewRequests])
+	}, [loadReviewRequests, logError])
 
 	useEffect(() => {
 		void refreshAuth()
 		void refreshAgents()
 	}, [refreshAuth, refreshAgents])
 
-	const selectedReview = useMemo(
-		() => reviews.find((review) => review.id === selectedReviewId) ?? null,
-		[reviews, selectedReviewId],
-	)
-
 	useEffect(() => {
-		if (!selectedReview) {
-			setDetail(null)
-			return
-		}
+		const timeout = window.setTimeout(() => setDebouncedQuery(query), 250)
+		return () => window.clearTimeout(timeout)
+	}, [query])
 
-		let cancelled = false
-		setDetailState('loading')
-		setDetailError('')
-		setDetail(null)
-		setSummary('')
 
-		appRpc.request
-			.getGitHubPullRequestDetails({
-				repo: selectedReview.repo,
-				pullRequestNumber: selectedReview.pullRequestNumber,
-			})
-			.then((pullRequestDetails) => {
-				if (!cancelled) {
-					setDetail(pullRequestDetails)
-					setDetailState('idle')
-				}
-			})
-			.catch((error: unknown) => {
-				if (!cancelled) {
-					setDetailError(getErrorMessage(error))
-					setDetailState('error')
-				}
-			})
-
-		return () => {
-			cancelled = true
-		}
-	}, [selectedReview])
-
-	const filteredReviews = useMemo(() => {
-		const normalizedQuery = query.trim().toLowerCase()
-		if (!normalizedQuery) {
-			return reviews
-		}
+	const displayedReviews = useMemo(() => {
+		const normalizedQuery = debouncedQuery.trim().toLowerCase()
+		if (!normalizedQuery) return reviews
 
 		return reviews.filter((review) => {
 			const searchableText =
 				`${review.repo} ${review.pullRequestNumber} ${review.title} ${review.author} ${review.url}`.toLowerCase()
 			return searchableText.includes(normalizedQuery)
 		})
-	}, [query, reviews])
+	}, [debouncedQuery, reviews])
+
+	const resetSummary = useCallback(() => setSummary(''), [])
+	const { detail, detailError, detailState } = usePullRequestDetails({
+		logError,
+		onResetSummary: resetSummary,
+		review: selectedReview,
+	})
+
+	const canReviewPrQuery = isPullRequestQuery(query)
+
+	const handleSearch = () => {
+		void searchPullRequests(query)
+	}
+
+	const handleClearSearch = () => {
+		setQuery('')
+		void loadReviewRequests()
+	}
 
 	const handleReviewPr = async () => {
-		const prQuery = query.trim()
-		if (!prQuery) return
-
-		setReviewPrState('loading')
-		setReviewsError('')
-
-		try {
-			const item = await appRpc.request.getGitHubPullRequestForReview({ query: prQuery })
-			setReviews((current) => [item, ...current.filter((review) => review.id !== item.id)])
-			setSelectedReviewId(item.id)
-			setQuery('')
-			setReviewPrState('idle')
-		} catch (error) {
-			setReviewsError(getErrorMessage(error))
-			setReviewPrState('error')
-		}
+		const reviewed = await reviewPullRequest(query)
+		if (reviewed) setQuery('')
 	}
 
 	const handleConnect = async () => {
@@ -235,7 +156,7 @@ function App() {
 				await loadReviewRequests()
 			}
 		} catch (error) {
-			setLoginOutput(getErrorMessage(error))
+			setLoginOutput(logError('Could not connect GitHub', error, 'GitHub login'))
 			setConnectState('error')
 		}
 	}
@@ -257,8 +178,22 @@ function App() {
 			color="fg.default"
 			colorPalette="cyan"
 		>
-			{showSettings ? (
-				<SettingsPage onBack={() => setShowSettings(false)} onSaved={handleSettingsSaved} />
+			{showErrorLog ? (
+				<ErrorLogPage
+					errors={errorLogs}
+					onBack={() => setShowErrorLog(false)}
+					onClear={clearErrors}
+					onDismiss={dismissError}
+				/>
+			) : showSettings ? (
+				<SettingsPage
+					onBack={() => setShowSettings(false)}
+					onOpenErrorLog={() => {
+						setShowSettings(false)
+						setShowErrorLog(true)
+					}}
+					onSaved={handleSettingsSaved}
+				/>
 			) : !currentAuthStatus.authenticated || !onboardingComplete ? (
 				<OnboardingPage
 					agentAvailability={agentAvailability}
@@ -282,17 +217,22 @@ function App() {
 					overflowX="hidden"
 				>
 					<ReviewInbox
+						canReviewPrQuery={canReviewPrQuery}
+						onClearSearch={handleClearSearch}
 						onOpenSettings={() => setShowSettings(true)}
 						onRefresh={loadReviewRequests}
 						onReviewPr={handleReviewPr}
+						onSearch={handleSearch}
 						onSelectReview={setSelectedReviewId}
 						query={query}
-						reviews={filteredReviews}
-						reviewsError={reviewsError}
+						reviews={displayedReviews}
 						reviewPrState={reviewPrState}
 						reviewsState={reviewsState}
+						searchMode={searchMode}
+						showResetAction={searchActive && query.trim() === activeSearchQuery}
 						selectedReviewId={selectedReviewId}
 						setQuery={setQuery}
+						setSearchMode={setSearchMode}
 						username={currentAuthStatus.username}
 					/>
 					<ReviewDetail

@@ -118,8 +118,9 @@ async function runReviewCommand(params: {
 }
 
 function cleanAgentOutput(output: string) {
+	const ansiEscapePattern = new RegExp(`${String.fromCharCode(27)}\\[[0-9;?]*[ -/]*[@-~]`, 'g')
 	return output
-		.replace(/\u001b\[[0-9;?]*[ -/]*[@-~]/g, '')
+		.replace(ansiEscapePattern, '')
 		.split('\n')
 		.map((line) => line.trimEnd())
 		.filter((line) => !/^>\s*\w+\s*·\s*.+$/.test(line.trim()))

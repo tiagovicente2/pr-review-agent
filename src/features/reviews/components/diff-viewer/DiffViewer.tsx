@@ -98,7 +98,7 @@ export const DiffViewer = memo(function DiffViewer({
 	}
 
 	return (
-		<Stack gap="4">
+		<Stack gap="4" pr="1">
 			{parsedPatch.files.map((fileDiff) => {
 				const fileKey = getFileDiffKey(fileDiff)
 				const selected = fileDiff.name === selectedFilePath || fileDiff.prevName === selectedFilePath
@@ -266,18 +266,29 @@ function getLineAnnotations(
 
 function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
 	return (
-		<Box
-			bg="cyan.subtle.bg"
-			borderColor="cyan.surface.border"
-			borderRadius="l2"
-			borderWidth="1px"
-			p="3"
-		>
-			<Badge colorPalette="cyan" size="sm">
-				Review comment
-			</Badge>
-			<Box color="fg.default" mt="2" textStyle="sm">
-				{annotation.metadata.body}
+		<Box p="2" w="100%">
+			<Box
+				bg="cyan.subtle.bg"
+				borderColor="cyan.surface.border"
+				borderRadius="l2"
+				borderWidth="1px"
+				maxW="100%"
+				minW="0"
+				overflow="hidden"
+				p="3"
+			>
+				<Badge colorPalette="cyan" size="sm">
+					Review comment
+				</Badge>
+				<Box
+					color="fg.default"
+					mt="2"
+					textStyle="sm"
+					whiteSpace="pre-wrap"
+					wordBreak="break-word"
+				>
+					{annotation.metadata.body}
+				</Box>
 			</Box>
 		</Box>
 	)

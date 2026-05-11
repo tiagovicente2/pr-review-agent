@@ -1,23 +1,17 @@
-import { useEffect, useState } from 'react'
+import { useCallback, useState } from 'react'
 import { Box, Grid, HStack, Stack } from 'styled-system/jsx'
 import { appRpc } from '@/app/rpc'
-import { useToast } from '@/app/toast'
 import type { AsyncState, ColorMode } from '@/app/types'
-import { formatDate, getErrorMessage } from '@/app/utils'
+import { formatDate } from '@/app/utils'
 import { StatusCard, TabButton } from '@/components/common'
-import { MarkdownContent } from '@/components/markdown/MarkdownContent'
 import { Badge, Button, Card } from '@/components/ui'
 import type { GitHubPullRequestDetails, GitHubReviewRequest } from '@/shared/github'
-import type { PiGeneratedReview, PiInlineComment, PiReviewFinding } from '@/shared/review'
-import { ChangedFilesTree } from './changed-files-tree/ChangedFilesTree'
-import { DiffViewer } from './diff-viewer/DiffViewer'
-import { GeneratedFindings } from './GeneratedFindings'
+import { useGeneratedReview } from '../hooks/useGeneratedReview'
+import { usePullRequestDiff } from '../hooks/usePullRequestDiff'
+import { CodeTab, ReviewTab, SummaryTab } from './ReviewDetailTabs'
 
 type TabId = 'code' | 'summary' | 'review'
 
-function getPiReviewJobId(detail: GitHubPullRequestDetails) {
-	return `pi-review:${detail.repo}#${detail.pullRequestNumber}:${detail.headSha}`
-}
 
 export function ReviewDetail({
 	colorMode,
@@ -35,74 +29,25 @@ export function ReviewDetail({
 	setSummary: (summary: string) => void
 }) {
 	const [activeTab, setActiveTab] = useState<TabId>('summary')
-	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null)
-	const [generationState, setGenerationState] = useState<AsyncState>('idle')
-	const [generationError, setGenerationError] = useState('')
-	const [generationMessage, setGenerationMessage] = useState('')
-	const [publishError, setPublishError] = useState('')
-	const [publishingAll, setPublishingAll] = useState(false)
-	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set())
-	const [generationJobId, setGenerationJobId] = useState<string | null>(null)
-	const [diff, setDiff] = useState('')
-	const [firstDiffFilePath, setFirstDiffFilePath] = useState<string | null>(null)
-	const [diffState, setDiffState] = useState<AsyncState>('idle')
-	const [diffError, setDiffError] = useState('')
-	const { showToast } = useToast()
-
-	useEffect(() => {
-		setDiff('')
-		setFirstDiffFilePath(null)
-		setDiffState('idle')
-		setDiffError('')
-		setGeneratedReview(null)
-		setGenerationState('idle')
-		setGenerationError('')
-		setGenerationMessage('')
-		setPublishError('')
-		setGenerationJobId(null)
-
-		if (!detail) {
-			return
-		}
-
-		let cancelled = false
-		const jobId = getPiReviewJobId(detail)
-		Promise.all([
-			appRpc.request.getSavedPiReview({
-				headSha: detail.headSha,
-				pullRequestNumber: detail.pullRequestNumber,
-				repo: detail.repo,
-			}),
-			appRpc.request.getPiReviewGenerationJob({ jobId }),
-		])
-			.then(([savedReview, job]) => {
-				if (cancelled) {
-					return
-				}
-
-				setGeneratedReview(savedReview)
-				if (job?.status === 'running') {
-					setGenerationState('loading')
-					setGenerationJobId(job.id)
-					setGenerationMessage(job.statusMessage ?? '')
-				} else if (job?.status === 'failed') {
-					setGenerationState('error')
-					setGenerationError(job.error ?? 'Review generation failed.')
-				} else {
-					setGenerationState('idle')
-					setGenerationJobId(null)
-				}
-			})
-			.catch(() => {
-				if (!cancelled) {
-					setGeneratedReview(null)
-				}
-			})
-
-		return () => {
-			cancelled = true
-		}
-	}, [detail])
+	const { diff, diffError, diffState, firstDiffFilePath, loadDiff } = usePullRequestDiff(detail)
+	const handleGenerationStart = useCallback(() => setActiveTab('review'), [])
+	const {
+		generateReview,
+		generatedReview,
+		generationError,
+		generationMessage,
+		generationState,
+		publishAll,
+		publishError,
+		publishFinding,
+		publishingAll,
+		publishingFindingIds,
+	} = useGeneratedReview({
+		detail,
+		loadDiff,
+		onStartGeneration: handleGenerationStart,
+		onSummary: setSummary,
+	})
 
 	const handleOpenOnGitHub = async () => {
 		if (review) {
@@ -110,189 +55,13 @@ export function ReviewDetail({
 		}
 	}
 
-	const handlePublishFinding = async (finding: PiReviewFinding) => {
-		if (!detail) {
-			return
-		}
-		setPublishError('')
-		setPublishingFindingIds((current) => new Set(current).add(finding.id))
-		try {
-			await appRpc.request.publishPiReviewComment({ finding, pullRequest: detail })
-		} catch (error) {
-			setPublishError(getErrorMessage(error))
-		} finally {
-			setPublishingFindingIds((current) => {
-				const next = new Set(current)
-				next.delete(finding.id)
-				return next
-			})
-		}
-	}
-
-	const handlePublishAll = async (findings: PiReviewFinding[]) => {
-		if (!detail) {
-			return
-		}
-		setPublishError('')
-		setPublishingAll(true)
-		try {
-			await appRpc.request.publishPiReviewComments({ findings, pullRequest: detail })
-		} catch (error) {
-			setPublishError(getErrorMessage(error))
-		} finally {
-			setPublishingAll(false)
-		}
-	}
-
-	useEffect(() => {
-		if (!detail) {
-			return
-		}
-
-		let cancelled = false
-		setDiffState('loading')
-		setDiffError('')
-		appRpc.request
-			.getGitHubPullRequestDiff({
-				headSha: detail.headSha,
-				pullRequestNumber: detail.pullRequestNumber,
-				repo: detail.repo,
-			})
-			.then((result) => {
-				if (!cancelled) {
-					setDiff(result.diff)
-					setFirstDiffFilePath(getFirstDiffFilePath(result.diff))
-					setDiffState('idle')
-				}
-			})
-			.catch((error: unknown) => {
-				if (!cancelled) {
-					setDiffError(getErrorMessage(error))
-					setDiffState('error')
-				}
-			})
-
-		return () => {
-			cancelled = true
-		}
-	}, [detail])
-
-	useEffect(() => {
-		if (!generationJobId) {
-			return
-		}
-
-		let cancelled = false
-		const interval = window.setInterval(async () => {
-			try {
-				const job = await appRpc.request.getPiReviewGenerationJob({ jobId: generationJobId })
-				if (cancelled || !job) {
-					return
-				}
-
-				setGenerationMessage(job.statusMessage ?? '')
-
-				if (job.status === 'completed' && job.review) {
-					setGeneratedReview(job.review)
-					setSummary(job.review.publishableBody || job.review.summary)
-					setGenerationState('idle')
-					showToast({
-						title: 'Review completed',
-						description: 'A draft review was generated.',
-						tone: 'success',
-					})
-					setGenerationJobId(null)
-				}
-
-				if (job.status === 'failed') {
-					setGenerationError(job.error ?? 'Review generation failed.')
-					setGenerationState('error')
-					setGenerationJobId(null)
-				}
-			} catch (error) {
-				if (!cancelled) {
-					setGenerationError(getErrorMessage(error))
-					setGenerationState('error')
-					setGenerationJobId(null)
-				}
-			}
-		}, 1500)
-
-		return () => {
-			cancelled = true
-			window.clearInterval(interval)
-		}
-	}, [generationJobId, setSummary, showToast])
-
-	const loadDiff = async () => {
-		if (!detail) {
-			return ''
-		}
-		if (diff) {
-			return diff
-		}
-
-		setDiffState('loading')
-		setDiffError('')
-		try {
-			const result = await appRpc.request.getGitHubPullRequestDiff({
-				headSha: detail.headSha,
-				pullRequestNumber: detail.pullRequestNumber,
-				repo: detail.repo,
-			})
-			setDiff(result.diff)
-			setFirstDiffFilePath(getFirstDiffFilePath(result.diff))
-			setDiffState('idle')
-			return result.diff
-		} catch (error) {
-			setDiffError(getErrorMessage(error))
-			setDiffState('error')
-			throw error
-		}
-	}
-
-	const handleGenerateReview = async () => {
-		if (!detail) {
-			setGenerationError('Load PR details before generating a review.')
-			setGenerationState('error')
-			return
-		}
-
-		setActiveTab('review')
-		setGenerationState('loading')
-		setGenerationError('')
-		setGenerationMessage('Loading the latest PR diff before starting review generation...')
-
-		try {
-			const loadedDiff = await loadDiff()
-			setGenerationMessage('Starting review generation...')
-			const job = await appRpc.request.startPiReviewGeneration({
-				pullRequest: { ...detail, diff: loadedDiff },
-			})
-			setGenerationJobId(job.id)
-			if (job.status === 'completed' && job.review) {
-				setGeneratedReview(job.review)
-				setSummary(job.review.publishableBody || job.review.summary)
-				setGenerationState('idle')
-				showToast({
-					title: 'Review completed',
-					description: 'A draft review was generated.',
-					tone: 'success',
-				})
-			}
-		} catch (error) {
-			setGenerationMessage('')
-			setGenerationError(getErrorMessage(error))
-			setGenerationState('error')
-		}
-	}
 
 	if (!review) {
 		return (
 			<Grid h="100%" minH="0" overflowY="auto" placeItems="center" p="8">
 				<StatusCard
 					title="Select a pull request"
-					body="Your real GitHub review requests will appear in the inbox."
+					body="Your GitHub review requests will appear in the inbox."
 				/>
 			</Grid>
 		)
@@ -332,7 +101,7 @@ export function ReviewDetail({
 						<Button
 							disabled={!detail || detailState === 'loading'}
 							loading={generationState === 'loading'}
-							onClick={handleGenerateReview}
+							onClick={generateReview}
 							size="sm"
 						>
 							Generate review
@@ -382,7 +151,7 @@ export function ReviewDetail({
 										{generatedReview.findings.length ? (
 											<Button
 												loading={publishingAll}
-												onClick={() => handlePublishAll(generatedReview.findings)}
+												onClick={() => publishAll(generatedReview.findings)}
 												size="sm"
 											>
 												Publish all comments
@@ -391,7 +160,7 @@ export function ReviewDetail({
 										<Button
 											disabled={!detail || detailState === 'loading'}
 											loading={generationState === 'loading'}
-											onClick={handleGenerateReview}
+											onClick={generateReview}
 											size="sm"
 											variant="outline"
 										>
@@ -425,7 +194,7 @@ export function ReviewDetail({
 									generationState={generationState}
 									publishError={publishError}
 									generatedReview={generatedReview}
-									onPublishFinding={handlePublishFinding}
+									onPublishFinding={publishFinding}
 									publishingFindingIds={publishingFindingIds}
 								/>
 							</Box>
@@ -434,194 +203,5 @@ export function ReviewDetail({
 				</Stack>
 			</Grid>
 		</Box>
-	)
-}
-
-function getFirstDiffFilePath(diff: string) {
-	const match = diff.match(/^diff --git a\/(.*?) b\/(.*?)$/m)
-	return match?.[2] ?? match?.[1] ?? null
-}
-
-function ReviewTab({
-	generationError,
-	generationMessage,
-	generationState,
-	generatedReview,
-	publishError,
-	onPublishFinding,
-	publishingFindingIds,
-}: {
-	generationError: string
-	generationMessage: string
-	generationState: AsyncState
-	generatedReview: PiGeneratedReview | null
-	publishError: string
-	onPublishFinding: (finding: PiReviewFinding) => void
-	publishingFindingIds: Set<string>
-}) {
-	return (
-		<Stack gap="4" h="100%" minH="0" overflow="hidden">
-			<Box
-				boxSizing="border-box"
-				h="100%"
-				minH="0"
-				overflowY="auto"
-				pr="3"
-				scrollbarGutter="stable"
-				textAlign={generatedReview ? 'left' : 'center'}
-				w="100%"
-			>
-				<GeneratedFindings
-					error={generationError || publishError}
-					generationMessage={generationMessage}
-					generationState={generationState}
-					onPublishFinding={onPublishFinding}
-					publishingFindingIds={publishingFindingIds}
-					review={generatedReview}
-				/>
-			</Box>
-		</Stack>
-	)
-}
-
-function CodeTab({
-	colorMode,
-	detail,
-	detailState,
-	diff,
-	diffError,
-	diffState,
-	firstDiffFilePath,
-	inlineComments,
-	onLoadDiff,
-}: {
-	colorMode: ColorMode
-	detail: GitHubPullRequestDetails | null
-	detailState: AsyncState
-	diff: string
-	diffError: string
-	diffState: AsyncState
-	firstDiffFilePath: string | null
-	inlineComments: PiInlineComment[]
-	onLoadDiff: () => Promise<string>
-}) {
-	const [selectedFilePath, setSelectedFilePath] = useState<string | null>(null)
-
-	useEffect(() => {
-		if (!detail) {
-			setSelectedFilePath(null)
-			return
-		}
-
-		setSelectedFilePath(firstDiffFilePath ?? detail.files[0]?.path ?? null)
-	}, [detail, firstDiffFilePath])
-
-	if (detailState === 'loading' || !detail || (!diff && !diffError)) {
-		return (
-			<Stack h="100%" placeContent="center" alignItems="center" textAlign="center">
-				<StatusCard
-					title="Loading pull request"
-					body="Loading PR metadata, changed files, and diff before showing the code view..."
-				/>
-			</Stack>
-		)
-	}
-
-	return (
-		<Grid
-			gridTemplateColumns={{ base: 'minmax(0, 1fr)', xl: '24rem minmax(0, 1fr)' }}
-			gap="5"
-			h="100%"
-			minH="0"
-			minW="0"
-			overflow="hidden"
-		>
-			<Card.Root
-				h="100%"
-				maxH={{ base: '24rem', xl: '100%' }}
-				minH="0"
-				overflow="hidden"
-				variant="outline"
-			>
-				<Card.Header>
-					<Card.Title>Changed files</Card.Title>
-					<Card.Description truncate>
-						{selectedFilePath
-							? `Focused: ${selectedFilePath}`
-							: `${detail?.files.length ?? 0} edited files`}
-					</Card.Description>
-				</Card.Header>
-				<Card.Body minH="0" overflow="hidden">
-					{detail ? (
-						<ChangedFilesTree
-							colorMode={colorMode}
-							files={detail.files}
-							onSelectFile={setSelectedFilePath}
-							selectedFilePath={selectedFilePath}
-						/>
-					) : null}
-				</Card.Body>
-			</Card.Root>
-
-			<Box
-				h="100%"
-				maxH={{ base: '70vh', xl: '100%' }}
-				maxW="100%"
-				minH="0"
-				minW="0"
-				overflow="auto"
-			>
-				{diff && selectedFilePath ? (
-					<DiffViewer
-						colorMode={colorMode}
-						inlineComments={inlineComments}
-						patch={diff}
-						selectedFilePath={selectedFilePath}
-					/>
-				) : diff ? (
-					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
-						<StatusCard
-							title="No file selected"
-							body="Choose a changed file from the tree to render its diff."
-						/>
-					</Stack>
-				) : (
-					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
-						<StatusCard
-							tone={diffError ? 'red' : 'gray'}
-							title={diffError ? 'Could not load diff' : 'Loading diff'}
-							body={diffError || 'Loading the patch in the background...'}
-						/>
-						{diffError ? (
-							<Button loading={diffState === 'loading'} onClick={() => void onLoadDiff()}>
-								Retry loading diff
-							</Button>
-						) : null}
-					</Stack>
-				)}
-			</Box>
-		</Grid>
-	)
-}
-
-function SummaryTab({ detail }: { detail: GitHubPullRequestDetails | null }) {
-	return (
-		<Stack h="100%" maxH={{ base: '70vh', xl: 'calc(100vh - 18rem)' }} minH="0" overflow="hidden">
-			<Card.Root h="100%" minH="0" overflow="hidden" variant="outline">
-				<Card.Header>
-					<Card.Title>Pull request summary</Card.Title>
-					<Card.Description>
-						{detail
-							? `${detail.headRefName} → ${detail.baseRefName} · ${detail.changedFilesCount} files changed`
-							: 'Load a pull request to see its summary.'}
-					</Card.Description>
-				</Card.Header>
-				<Card.Body minH="0" overflowY="auto">
-					<MarkdownContent>
-						{detail?.body || 'This pull request does not include a description.'}
-					</MarkdownContent>
-				</Card.Body>
-			</Card.Root>
-		</Stack>
 	)
 }

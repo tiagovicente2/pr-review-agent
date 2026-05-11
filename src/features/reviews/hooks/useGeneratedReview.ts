@@ -1,0 +1,197 @@
+import { useCallback, useEffect, useState } from 'react'
+import { appRpc } from '@/app/rpc'
+import { useToast } from '@/app/toast'
+import type { AsyncState } from '@/app/types'
+import { getErrorMessage } from '@/app/utils'
+import type { GitHubPullRequestDetails } from '@/shared/github'
+import type { PiGeneratedReview, PiReviewFinding } from '@/shared/review'
+
+function getPiReviewJobId(detail: GitHubPullRequestDetails) {
+	return `pi-review:${detail.repo}#${detail.pullRequestNumber}:${detail.headSha}`
+}
+
+export function useGeneratedReview({
+	detail,
+	loadDiff,
+	onSummary,
+	onStartGeneration,
+}: {
+	detail: GitHubPullRequestDetails | null
+	loadDiff: () => Promise<string>
+	onSummary: (summary: string) => void
+	onStartGeneration: () => void
+}) {
+	const [generatedReview, setGeneratedReview] = useState<PiGeneratedReview | null>(null)
+	const [generationState, setGenerationState] = useState<AsyncState>('idle')
+	const [generationError, setGenerationError] = useState('')
+	const [generationMessage, setGenerationMessage] = useState('')
+	const [publishError, setPublishError] = useState('')
+	const [publishingAll, setPublishingAll] = useState(false)
+	const [publishingFindingIds, setPublishingFindingIds] = useState<Set<string>>(() => new Set())
+	const [generationJobId, setGenerationJobId] = useState<string | null>(null)
+	const { showToast } = useToast()
+
+	const completeGeneration = useCallback(
+		(review: PiGeneratedReview) => {
+			setGeneratedReview(review)
+			onSummary(review.publishableBody || review.summary)
+			setGenerationState('idle')
+			showToast({ title: 'Review completed', description: 'A draft review was generated.', tone: 'success' })
+		},
+		[onSummary, showToast],
+	)
+
+	useEffect(() => {
+		setGeneratedReview(null)
+		setGenerationState('idle')
+		setGenerationError('')
+		setGenerationMessage('')
+		setPublishError('')
+		setGenerationJobId(null)
+		if (!detail) return
+
+		let cancelled = false
+		const jobId = getPiReviewJobId(detail)
+		Promise.all([
+			appRpc.request.getSavedPiReview({
+				headSha: detail.headSha,
+				pullRequestNumber: detail.pullRequestNumber,
+				repo: detail.repo,
+			}),
+			appRpc.request.getPiReviewGenerationJob({ jobId }),
+		])
+			.then(([savedReview, job]) => {
+				if (cancelled) return
+				setGeneratedReview(savedReview)
+				if (job?.status === 'running') {
+					setGenerationState('loading')
+					setGenerationJobId(job.id)
+					setGenerationMessage(job.statusMessage ?? '')
+				} else if (job?.status === 'failed') {
+					setGenerationState('error')
+					setGenerationError(job.error ?? 'Review generation failed.')
+				} else {
+					setGenerationState('idle')
+					setGenerationJobId(null)
+				}
+			})
+			.catch(() => {
+				if (!cancelled) setGeneratedReview(null)
+			})
+
+		return () => {
+			cancelled = true
+		}
+	}, [detail])
+
+	useEffect(() => {
+		if (!generationJobId) return
+
+		let cancelled = false
+		const interval = window.setInterval(async () => {
+			try {
+				const job = await appRpc.request.getPiReviewGenerationJob({ jobId: generationJobId })
+				if (cancelled || !job) return
+				setGenerationMessage(job.statusMessage ?? '')
+
+				if (job.status === 'completed' && job.review) {
+					completeGeneration(job.review)
+					setGenerationJobId(null)
+				}
+
+				if (job.status === 'failed') {
+					setGenerationError(job.error ?? 'Review generation failed.')
+					setGenerationState('error')
+					setGenerationJobId(null)
+				}
+			} catch (error) {
+				if (!cancelled) {
+					setGenerationError(getErrorMessage(error))
+					setGenerationState('error')
+					setGenerationJobId(null)
+				}
+			}
+		}, 1500)
+
+		return () => {
+			cancelled = true
+			window.clearInterval(interval)
+		}
+	}, [completeGeneration, generationJobId])
+
+	const generateReview = useCallback(async () => {
+		if (!detail) {
+			setGenerationError('Load PR details before generating a review.')
+			setGenerationState('error')
+			return
+		}
+
+		onStartGeneration()
+		setGenerationState('loading')
+		setGenerationError('')
+		setGenerationMessage('Loading the latest PR diff before starting review generation...')
+
+		try {
+			const loadedDiff = await loadDiff()
+			setGenerationMessage('Starting review generation...')
+			const job = await appRpc.request.startPiReviewGeneration({
+				pullRequest: { ...detail, diff: loadedDiff },
+			})
+			setGenerationJobId(job.id)
+			if (job.status === 'completed' && job.review) completeGeneration(job.review)
+		} catch (error) {
+			setGenerationMessage('')
+			setGenerationError(getErrorMessage(error))
+			setGenerationState('error')
+		}
+	}, [completeGeneration, detail, loadDiff, onStartGeneration])
+
+	const publishFinding = useCallback(
+		async (finding: PiReviewFinding) => {
+			if (!detail) return
+			setPublishError('')
+			setPublishingFindingIds((current) => new Set(current).add(finding.id))
+			try {
+				await appRpc.request.publishPiReviewComment({ finding, pullRequest: detail })
+			} catch (error) {
+				setPublishError(getErrorMessage(error))
+			} finally {
+				setPublishingFindingIds((current) => {
+					const next = new Set(current)
+					next.delete(finding.id)
+					return next
+				})
+			}
+		},
+		[detail],
+	)
+
+	const publishAll = useCallback(
+		async (findings: PiReviewFinding[]) => {
+			if (!detail) return
+			setPublishError('')
+			setPublishingAll(true)
+			try {
+				await appRpc.request.publishPiReviewComments({ findings, pullRequest: detail })
+			} catch (error) {
+				setPublishError(getErrorMessage(error))
+			} finally {
+				setPublishingAll(false)
+			}
+		},
+		[detail],
+	)
+
+	return {
+		generateReview,
+		generatedReview,
+		generationError,
+		generationMessage,
+		generationState,
+		publishAll,
+		publishError,
+		publishFinding,
+		publishingAll,
+		publishingFindingIds,
+	}
+}

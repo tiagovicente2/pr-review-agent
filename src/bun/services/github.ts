@@ -24,6 +24,7 @@ async function runGh(
 	options: { disablePrompt?: boolean } = {},
 ): Promise<CommandResult> {
 	const proc = Bun.spawn(['gh', ...args], {
+		cwd: Bun.env.HOME ?? '/tmp',
 		stdin: input === undefined ? 'ignore' : 'pipe',
 		stdout: 'pipe',
 		stderr: 'pipe',
@@ -53,6 +54,7 @@ async function runGhBinary(args: string[]): Promise<{
 	stderr: string
 }> {
 	const proc = Bun.spawn(['gh', ...args], {
+		cwd: Bun.env.HOME ?? '/tmp',
 		stdin: 'ignore',
 		stdout: 'pipe',
 		stderr: 'pipe',
@@ -305,6 +307,123 @@ export async function listGitHubReviewRequests(): Promise<GitHubReviewRequest[]>
 	}>
 
 	return parsed.map(toReviewRequest)
+}
+
+export async function searchGitHubPullRequests(params: {
+	query: string
+	mode?: 'smart' | 'repo' | 'author' | 'title' | 'review-requested'
+}): Promise<GitHubReviewRequest[]> {
+	const authStatus = await getGitHubAuthStatus()
+	if (!authStatus.authenticated) {
+		throw new Error(authStatus.error ?? authStatus.message ?? 'Connect GitHub before searching PRs.')
+	}
+
+	const query = params.query.trim()
+	if (!query) return []
+
+	const results = await Promise.all(
+		(await getPullRequestSearchQueries(query, params.mode ?? 'smart')).map(async (searchQuery) => {
+			const result = await runGh([
+				'search',
+				'prs',
+				searchQuery,
+				'--state=open',
+				'--limit=50',
+				'--json',
+				'repository,number,title,author,url,updatedAt,state,isDraft,id',
+			])
+			assertSuccess(result, 'search pull requests')
+			return JSON.parse(result.stdout) as Array<{
+				id?: string
+				repository?: unknown
+				number: number
+				title: string
+				author?: unknown
+				url: string
+				updatedAt: string
+				state: string
+				isDraft?: boolean
+			}>
+		}),
+	)
+
+	return Array.from(
+		new Map(results.flat().map((item) => [item.id ?? item.url, toReviewRequest(item)])).values(),
+	)
+}
+
+async function getPullRequestSearchQueries(
+	query: string,
+	mode: 'smart' | 'repo' | 'author' | 'title' | 'review-requested',
+) {
+	const queries = new Set<string>()
+
+	if (mode === 'repo') {
+		if (/^[^\s/]+\/[^\s/]+$/.test(query)) {
+			queries.add(`repo:${query}`)
+		} else {
+			for (const repo of await searchMatchingRepositories(query)) {
+				queries.add(`repo:${repo}`)
+			}
+		}
+		return Array.from(queries)
+	}
+
+	if (mode === 'author') return [`author:${query.replace(/^@/, '')}`]
+	if (mode === 'review-requested') return [`review-requested:${query.replace(/^@/, '')}`]
+	if (mode === 'title') return [`${query} in:title`]
+
+	if (/^[^\s/]+\/[^\s/]+$/.test(query)) {
+		queries.add(`repo:${query}`)
+		return Array.from(queries)
+	}
+
+	if (/^[\w.-]+$/.test(query)) {
+		const matchingRepos = await searchMatchingRepositories(query)
+		for (const repo of matchingRepos) {
+			queries.add(`repo:${repo}`)
+		}
+
+		queries.add(`author:${query}`)
+		queries.add(`assignee:${query}`)
+		queries.add(`mentions:${query}`)
+		queries.add(`review-requested:${query}`)
+	}
+
+	queries.add(query)
+	return Array.from(queries)
+}
+
+async function searchMatchingRepositories(query: string) {
+	const result = await runGh([
+		'search',
+		'repos',
+		`${query} in:name`,
+		'--limit=10',
+		'--json',
+		'fullName',
+	])
+
+	if (result.exitCode !== 0) {
+		return []
+	}
+
+	const parsed = JSON.parse(result.stdout) as Array<{ fullName?: string }>
+	return parsed
+		.map((repo) => repo.fullName)
+		.filter((fullName): fullName is string => Boolean(fullName))
+		.sort((left, right) => scoreRepositoryMatch(query, right) - scoreRepositoryMatch(query, left))
+}
+
+function scoreRepositoryMatch(query: string, fullName: string) {
+	const normalizedQuery = query.toLowerCase()
+	const repoParts = fullName.split('/')
+	const repoName = (repoParts[repoParts.length - 1] ?? fullName).toLowerCase()
+
+	if (repoName === normalizedQuery) return 4
+	if (repoName.startsWith(normalizedQuery)) return 3
+	if (repoName.includes(normalizedQuery)) return 2
+	return 1
 }
 
 export async function getGitHubPullRequestForReview(params: {

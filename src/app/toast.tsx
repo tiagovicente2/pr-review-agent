@@ -1,4 +1,5 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react'
+import { css, cx } from 'styled-system/css'
 import { Box, Stack } from 'styled-system/jsx'
 
 type ToastTone = 'success' | 'error' | 'info'
@@ -8,6 +9,7 @@ type Toast = {
 	title: string
 	description?: string
 	tone: ToastTone
+	onClick?: () => void
 }
 
 type ToastContextValue = {
@@ -15,6 +17,18 @@ type ToastContextValue = {
 }
 
 const ToastContext = createContext<ToastContextValue | null>(null)
+
+const toastToneClassNames: Record<ToastTone, string> = {
+	success: css({ bg: 'blue.9', borderColor: 'blue.11', color: 'white' }),
+	error: css({ bg: 'red.9', borderColor: 'red.11', color: 'white' }),
+	info: css({ bg: 'gray.12', borderColor: 'gray.9', color: 'white' }),
+}
+
+const toastDescriptionClassNames: Record<ToastTone, string> = {
+	success: css({ color: 'blue.2' }),
+	error: css({ color: 'red.2' }),
+	info: css({ color: 'gray.3' }),
+}
 
 export function ToastProvider({ children }: { children: ReactNode }) {
 	const [toasts, setToasts] = useState<Toast[]>([])
@@ -47,20 +61,40 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 			>
 				{toasts.map((toast) => (
 					<Box
-						bg="gray.2"
-						borderColor={toastBorderColor(toast.tone)}
+						className={toastToneClassNames[toast.tone]}
 						borderLeftWidth="4px"
 						borderRadius="l2"
-						boxShadow="lg"
+						boxShadow="xl"
+						cursor={toast.onClick ? 'pointer' : 'default'}
 						key={toast.id}
+						onClick={toast.onClick}
 						p="4"
+						role={toast.onClick ? 'button' : 'status'}
+						tabIndex={toast.onClick ? 0 : undefined}
 					>
-						<Box fontWeight="semibold">{toast.title}</Box>
-						{toast.description ? (
-							<Box color="fg.muted" mt="1" textStyle="sm">
-								{toast.description}
+						<Box alignItems="flex-start" display="flex" gap="3" justifyContent="space-between">
+							<Box minW="0">
+								<Box fontWeight="semibold">
+									{toast.title}
+								</Box>
+								{toast.description ? (
+									<Box className={toastDescriptionClassNames[toast.tone]} mt="1" textStyle="sm">
+										{toast.description}
+									</Box>
+								) : null}
 							</Box>
-						) : null}
+							<Box
+								as="button"
+								aria-label="Dismiss notification"
+								onClick={(event) => {
+									event.stopPropagation()
+									removeToast(toast.id)
+								}}
+								className={cx(toastDescriptionClassNames[toast.tone], css({ fontWeight: 'bold' }))}
+							>
+								×
+							</Box>
+						</Box>
 					</Box>
 				))}
 			</Stack>
@@ -74,14 +108,4 @@ export function useToast() {
 		throw new Error('useToast must be used inside ToastProvider')
 	}
 	return context
-}
-
-function toastBorderColor(tone: ToastTone) {
-	if (tone === 'success') {
-		return 'green.9'
-	}
-	if (tone === 'error') {
-		return 'red.9'
-	}
-	return 'cyan.9'
 }

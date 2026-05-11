@@ -60,6 +60,10 @@ export type AppRPCSchema = {
 				params: undefined
 				response: GitHubReviewRequest[]
 			}
+			searchGitHubPullRequests: {
+				params: { query: string; mode?: 'smart' | 'repo' | 'author' | 'title' | 'review-requested' }
+				response: GitHubReviewRequest[]
+			}
 			getGitHubPullRequestForReview: {
 				params: { query: string }
 				response: GitHubReviewRequest

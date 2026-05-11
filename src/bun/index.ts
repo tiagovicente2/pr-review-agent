@@ -7,6 +7,7 @@ import {
 	getGitHubPullRequestDiff,
 	getGitHubPullRequestForReview,
 	listGitHubReviewRequests,
+	searchGitHubPullRequests,
 	startGitHubLogin,
 } from './services/github'
 import { openExternalUrl } from './services/open-external'
@@ -61,6 +62,7 @@ const appRpc = BrowserView.defineRPC<AppRPCSchema>({
 			getGitHubAuthStatus,
 			startGitHubLogin,
 			listGitHubReviewRequests,
+			searchGitHubPullRequests,
 			getGitHubPullRequestForReview,
 			getGitHubPullRequestDetails,
 			getGitHubPullRequestDiff,

@@ -1,6 +1,7 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { css, cx } from 'styled-system/css'
 import { Box, Stack } from 'styled-system/jsx'
+import { reviewColors } from '@/theme/tokens/review'
 
 type ToastTone = 'success' | 'error' | 'info'
 
@@ -19,15 +20,15 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null)
 
 const toastToneClassNames: Record<ToastTone, string> = {
-	success: css({ bg: 'blue.9', borderColor: 'blue.11', color: 'white' }),
-	error: css({ bg: 'red.9', borderColor: 'red.11', color: 'white' }),
-	info: css({ bg: 'gray.12', borderColor: 'gray.9', color: 'white' }),
+	success: css({ bg: reviewColors.blue, borderColor: reviewColors.blue, color: 'white' }),
+	error: css({ bg: 'red.9', borderColor: 'red.9', color: 'white' }),
+	info: css({ bg: 'black', borderColor: 'black', color: 'white' }),
 }
 
 const toastDescriptionClassNames: Record<ToastTone, string> = {
-	success: css({ color: 'blue.2' }),
-	error: css({ color: 'red.2' }),
-	info: css({ color: 'gray.3' }),
+	success: css({ color: 'white' }),
+	error: css({ color: 'white' }),
+	info: css({ color: 'white' }),
 }
 
 export function ToastProvider({ children }: { children: ReactNode }) {

@@ -74,8 +74,8 @@ export function getReviewModel() {
 
 export async function listAgentAvailability(): Promise<AgentAvailability[]> {
 	return Promise.all(
-		(['pi', 'claude', 'opencode'] as CodeAgent[]).map(async (agent) => {
-			const command = agent === 'opencode' ? 'opencode' : agent
+		(['pi', 'claude', 'opencode', 'codex'] as CodeAgent[]).map(async (agent) => {
+			const command = agent
 			const installed = await commandExists(command)
 			if (!installed) {
 				return {
@@ -110,6 +110,7 @@ export async function listAvailablePiModels(params?: {
 	if (agent === 'pi') models = await listAvailableModelsForPi()
 	if (agent === 'claude') models = defaultClaudeModels()
 	if (agent === 'opencode') models = await listAvailableModelsForOpencode()
+	if (agent === 'codex') models = defaultCodexModels()
 
 	availableModelsCache.set(agent, models)
 	return models
@@ -164,10 +165,17 @@ async function checkAgentReady(agent: CodeAgent): Promise<{ ready: boolean; mess
 			: { ready: false, message: 'Claude is installed. Run `claude /login` in a terminal to authenticate.' }
 	}
 
-	const ready = Boolean(Bun.env.OPENCODE_API_KEY) || existsSync(join(getHomeDir(), '.config', 'opencode'))
+	if (agent === 'opencode') {
+		const ready = Boolean(Bun.env.OPENCODE_API_KEY) || existsSync(join(getHomeDir(), '.config', 'opencode'))
+		return ready
+			? { ready: true, message: 'opencode is installed and has local configuration.' }
+			: { ready: false, message: 'opencode is installed. Run `opencode providers` in a terminal to configure credentials.' }
+	}
+
+	const ready = Boolean(Bun.env.OPENAI_API_KEY) || existsSync(join(getHomeDir(), '.codex', 'auth.json'))
 	return ready
-		? { ready: true, message: 'opencode is installed and has local configuration.' }
-		: { ready: false, message: 'opencode is installed. Run `opencode providers` in a terminal to configure credentials.' }
+		? { ready: true, message: 'Codex is installed and has local credentials.' }
+		: { ready: false, message: 'Codex is installed. Run `codex login` in a terminal to authenticate.' }
 }
 
 async function listPiModelsBySearch(search: string) {
@@ -280,9 +288,14 @@ function defaultOpencodeModels(): AvailablePiModel[] {
 	return [{ id: 'opencode/default', label: 'opencode/default', provider: 'opencode', model: 'default' }]
 }
 
+function defaultCodexModels(): AvailablePiModel[] {
+	return [{ id: 'gpt-5.3-codex', label: 'gpt-5.3-codex', provider: 'codex', model: 'gpt-5.3-codex' }]
+}
+
 function getDefaultModelForAgent(agent: CodeAgent) {
 	if (agent === 'claude') return defaultClaudeModels()[0]?.id ?? 'sonnet'
 	if (agent === 'opencode') return defaultOpencodeModels()[0]?.id ?? 'opencode/default'
+	if (agent === 'codex') return defaultCodexModels()[0]?.id ?? 'gpt-5.3-codex'
 	return getDefaultPiModel()
 }
 
@@ -322,12 +335,13 @@ function getReviewLanguageValue(value: unknown): ReviewLanguage {
 }
 
 function getCodeAgentValue(value: unknown): CodeAgent {
-	return value === 'claude' || value === 'opencode' ? value : 'pi'
+	return value === 'claude' || value === 'opencode' || value === 'codex' ? value : 'pi'
 }
 
 function getAgentLabel(agent: CodeAgent) {
 	if (agent === 'claude') return 'Claude'
 	if (agent === 'opencode') return 'opencode'
+	if (agent === 'codex') return 'Codex'
 	return 'Pi'
 }
 

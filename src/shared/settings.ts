@@ -1,5 +1,5 @@
 export type ColorModePreference = 'dark' | 'light' | 'system'
-export type CodeAgent = 'pi' | 'claude' | 'opencode'
+export type CodeAgent = 'pi' | 'claude' | 'opencode' | 'codex'
 export type ReviewLanguage = 'english' | 'portuguese'
 
 export type AgentAvailability = {

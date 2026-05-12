@@ -53,6 +53,23 @@ async function runAgentReview(prompt: string): Promise<CommandResult> {
 		})
 	}
 
+	if (agent === 'codex') {
+		return runReviewCommand({
+			agentName: 'Codex',
+			args: [
+				'codex',
+				'exec',
+				'--sandbox',
+				'read-only',
+				'--ignore-rules',
+				...(model ? ['--model', model] : []),
+				'-',
+			],
+			env: {},
+			prompt: `${systemPrompt}\n\n${prompt}`,
+		})
+	}
+
 	return runReviewCommand({
 		agentName: 'Pi',
 		args: [
@@ -132,6 +149,7 @@ function getAgentLabel() {
 	const agent = getReviewCodeAgent()
 	if (agent === 'claude') return 'Claude'
 	if (agent === 'opencode') return 'opencode'
+	if (agent === 'codex') return 'Codex'
 	return 'Pi'
 }
 

@@ -50,7 +50,7 @@ export function PreferencesCard({
 						<Select
 							value={settings.codeAgent}
 							onChange={(value) => onChange({ ...settings, codeAgent: value as CodeAgent, model: '' })}
-							options={['pi', 'claude', 'opencode']}
+							options={['pi', 'claude', 'opencode', 'codex']}
 						/>
 					</InlineField>
 					<InlineField label="Model">

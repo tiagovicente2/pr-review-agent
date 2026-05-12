@@ -5,7 +5,7 @@ import type {
 	PublishPiReviewCommentsParams,
 } from '@/shared/review'
 
-const PI_PUBLISH_TIMEOUT_MS = 5 * 60 * 1000
+const GH_PUBLISH_TIMEOUT_MS = 60 * 1000
 
 type CommandResult = {
 	exitCode: number
@@ -29,14 +29,20 @@ export async function publishPiReviewComments(
 		)
 	}
 
-	const result = await runPiPublisher(buildPublishPrompt(params, publishableFindings))
-	const output = [result.stdout, result.stderr].filter(Boolean).join('\n').trim()
+	const results: string[] = []
 
-	if (result.exitCode !== 0) {
-		throw new Error(output || 'Pi failed to publish review comments.')
+	for (const finding of publishableFindings) {
+		const result = await publishFinding(params, finding)
+		const output = [result.stdout, result.stderr].filter(Boolean).join('\n').trim()
+
+		if (result.exitCode !== 0) {
+			throw new Error(output || `Failed to publish comment for ${finding.filePath}:${finding.lineStart}.`)
+		}
+
+		results.push(`Published comment for ${finding.filePath}:${finding.lineStart}`)
 	}
 
-	return { ok: true, output }
+	return { ok: true, output: results.join('\n') }
 }
 
 function isPublishableFinding(finding: PiReviewFinding) {
@@ -47,74 +53,43 @@ function getCommentBody(finding: PiReviewFinding) {
 	return finding.suggestedCommentBody || finding.body
 }
 
-function buildPublishPrompt(params: PublishPiReviewCommentsParams, findings: PiReviewFinding[]) {
-	return `You are publishing GitHub PR review comments for PR Review Agent.
+async function publishFinding(
+	params: PublishPiReviewCommentsParams,
+	finding: PiReviewFinding,
+): Promise<CommandResult> {
+	const body = getCommentBody(finding)
+	if (!body || !finding.lineStart) {
+		throw new Error('Finding is missing a comment body or line number.')
+	}
 
-Use the local gh CLI only. Do not approve, request changes, submit a full review, merge, close, edit code, or push commits.
-Create only individual pending-free PR review comments using GitHub's review comment API.
-
-PR:
-${JSON.stringify(
-	{
-		repo: params.pullRequest.repo,
-		pullRequestNumber: params.pullRequest.pullRequestNumber,
-		commitId: params.pullRequest.headSha,
-		url: params.pullRequest.url,
-	},
-	null,
-	2,
-)}
-
-Comments to publish:
-${JSON.stringify(
-	findings.map((finding) => ({
-		body: getCommentBody(finding),
-		line: finding.lineStart,
-		path: finding.filePath,
-		side: 'RIGHT',
-		title: finding.title,
-	})),
-	null,
-	2,
-)}
-
-For each comment, run a command equivalent to:
-gh api repos/OWNER/REPO/pulls/PR_NUMBER/comments -f body=... -f commit_id=... -f path=... -F line=... -f side=RIGHT
-
-Return a concise success/failure summary.`
+	return runGh([
+		'api',
+		`repos/${params.pullRequest.repo}/pulls/${params.pullRequest.pullRequestNumber}/comments`,
+		'-f',
+		`body=${body}`,
+		'-f',
+		`commit_id=${params.pullRequest.headSha}`,
+		'-f',
+		`path=${finding.filePath}`,
+		'-F',
+		`line=${finding.lineStart}`,
+		'-f',
+		'side=RIGHT',
+	])
 }
 
-async function runPiPublisher(prompt: string): Promise<CommandResult> {
-	const proc = Bun.spawn(
-		[
-			'pi',
-			'-p',
-			'--no-context-files',
-			'--no-session',
-			'--thinking',
-			'low',
-			'--system-prompt',
-			'You are a careful local automation agent. Use tools only to run the requested gh CLI commands. Never publish anything except the explicitly provided PR review comments.',
-		],
-		{
-			stdin: 'pipe',
-			stdout: 'pipe',
-			stderr: 'pipe',
-			env: {
-				...Bun.env,
-				PI_SKIP_VERSION_CHECK: '1',
-			},
-		},
-	)
-
-	proc.stdin.write(prompt)
-	proc.stdin.end()
+async function runGh(args: string[]): Promise<CommandResult> {
+	const proc = Bun.spawn(['gh', ...args], {
+		stdout: 'pipe',
+		stderr: 'pipe',
+		env: Bun.env,
+	})
 
 	const timeout = new Promise<never>((_, reject) => {
 		setTimeout(() => {
 			proc.kill()
-			reject(new Error('Pi publish timed out.'))
-		}, PI_PUBLISH_TIMEOUT_MS)
+			reject(new Error('GitHub comment publish timed out.'))
+		}, GH_PUBLISH_TIMEOUT_MS)
 	})
 
 	const result = Promise.all([

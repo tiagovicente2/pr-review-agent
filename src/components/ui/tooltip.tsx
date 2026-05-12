@@ -37,8 +37,8 @@ export function InfoTooltip({
 			</button>
 			<Box
 				data-tooltip
-				bg="gray.2"
-				borderColor="border.default"
+				bg="gray.3"
+				borderColor="gray.7"
 				borderRadius="l2"
 				borderWidth="1px"
 				top="50%"

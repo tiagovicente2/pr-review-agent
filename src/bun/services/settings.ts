@@ -110,7 +110,7 @@ export async function listAvailablePiModels(params?: {
 	if (agent === 'pi') models = await listAvailableModelsForPi()
 	if (agent === 'claude') models = defaultClaudeModels()
 	if (agent === 'opencode') models = await listAvailableModelsForOpencode()
-	if (agent === 'codex') models = defaultCodexModels()
+	if (agent === 'codex') models = listAvailableModelsForCodex()
 
 	availableModelsCache.set(agent, models)
 	return models
@@ -288,8 +288,52 @@ function defaultOpencodeModels(): AvailablePiModel[] {
 	return [{ id: 'opencode/default', label: 'opencode/default', provider: 'opencode', model: 'default' }]
 }
 
+function listAvailableModelsForCodex(): AvailablePiModel[] {
+	const models = readCodexModelsCache()
+	return models.length > 0 ? models : defaultCodexModels()
+}
+
 function defaultCodexModels(): AvailablePiModel[] {
-	return [{ id: 'gpt-5.3-codex', label: 'gpt-5.3-codex', provider: 'codex', model: 'gpt-5.3-codex' }]
+	return [
+		'gpt-5.5',
+		'gpt-5.4',
+		'gpt-5.4-mini',
+		'gpt-5.3-codex',
+		'gpt-5.2',
+	].map((model) => ({
+		id: model,
+		label: model,
+		provider: 'codex',
+		model,
+	}))
+}
+
+function readCodexModelsCache(): AvailablePiModel[] {
+	try {
+		const cache = JSON.parse(readFileSync(join(getHomeDir(), '.codex', 'models_cache.json'), 'utf8')) as {
+			models?: Array<{
+				display_name?: unknown
+				slug?: unknown
+				supported_in_api?: unknown
+				visibility?: unknown
+			}>
+		}
+		return (cache.models ?? [])
+			.filter((model) => model.visibility === 'list')
+			.filter((model) => model.supported_in_api !== false)
+			.map((model) => {
+				const slug = typeof model.slug === 'string' ? model.slug : ''
+				return {
+					id: slug,
+					label: typeof model.display_name === 'string' ? model.display_name : slug,
+					provider: 'codex',
+					model: slug,
+				}
+			})
+			.filter((model) => model.id && model.label)
+	} catch {
+		return []
+	}
 }
 
 function getDefaultModelForAgent(agent: CodeAgent) {

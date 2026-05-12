@@ -1,6 +1,6 @@
 import { Box, HStack, Stack } from 'styled-system/jsx'
 import type { AsyncState } from '@/app/types'
-import { Badge, Button, Card } from '@/components/ui'
+import { Badge, Button, Card, InfoTooltip } from '@/components/ui'
 import type { AgentAvailability } from '@/shared/settings'
 
 export function AgentStatusCard({
@@ -12,13 +12,15 @@ export function AgentStatusCard({
 	agentsState: AsyncState
 	onRefresh: () => void
 }) {
-	const readyCount = agents.filter((agent) => agent.ready).length
 	return (
-		<Card.Root variant="outline">
+		<Card.Root flex="1" minH="0" overflow="hidden" variant="outline">
 			<Card.Header>
 				<HStack justify="space-between" gap="3">
 					<Box minW="0">
-						<Card.Title>System status</Card.Title>
+						<HStack alignItems="center" gap="2">
+							<Card.Title>System status</Card.Title>
+							<InfoTooltip message="At least one review agent must be ready to generate drafts." />
+						</HStack>
 						<Card.Description>
 							GitHub is checked during onboarding. Review agent status is shown here.
 						</Card.Description>
@@ -28,16 +30,8 @@ export function AgentStatusCard({
 					</Button>
 				</HStack>
 			</Card.Header>
-			<Card.Body>
+			<Card.Body minH="0" overflowY="auto">
 				<Stack gap="3">
-					<HStack justify="space-between" gap="3">
-						<Box color="fg.muted" textStyle="sm">
-							At least one review agent must be ready to generate drafts.
-						</Box>
-						<Badge colorPalette={readyCount > 0 ? 'green' : 'red'}>
-							{readyCount > 0 ? `${readyCount} ready` : 'Needs setup'}
-						</Badge>
-					</HStack>
 					{agents.map((agent) => (
 						<Box key={agent.agent} bg="gray.2" borderRadius="l2" p="3">
 							<HStack justify="space-between" gap="3">

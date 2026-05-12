@@ -40,10 +40,7 @@ export function PreferencesCard({
 						label="Code agent"
 						labelAccessory={
 							selectedAgentAvailability ? (
-								<InfoTooltip
-									message={selectedAgentAvailability.message}
-									tone={selectedAgentAvailability.ready ? 'success' : 'error'}
-								/>
+								<InfoTooltip message={selectedAgentAvailability.message} />
 							) : null
 						}
 					>

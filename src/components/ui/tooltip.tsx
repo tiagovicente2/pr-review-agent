@@ -5,35 +5,38 @@ import { Box } from 'styled-system/jsx'
 export function InfoTooltip({
 	children,
 	message,
-	tone = 'default',
 }: {
 	children?: ReactNode
 	message: string
-	tone?: 'default' | 'success' | 'error'
 }) {
-	const color = tone === 'success' ? 'green.11' : tone === 'error' ? 'red.11' : 'fg.muted'
-	const borderColor = tone === 'success' ? 'green.9' : tone === 'error' ? 'red.9' : 'border.default'
-
 	return (
-		<Box position="relative" className={css({ _hover: { '& [data-tooltip]': { opacity: 1, visibility: 'visible' } } })}>
+		<Box
+			display="inline-flex"
+			alignItems="center"
+			position="relative"
+			verticalAlign="middle"
+			className={css({
+				_hover: { '& [data-tooltip]': { opacity: 1, visibility: 'visible' } },
+			})}
+		>
 			<button
 				type="button"
 				aria-label={message}
 				className={css({
 					alignItems: 'center',
-					borderColor,
+					borderColor: 'gray.7',
 					borderRadius: 'full',
 					borderWidth: '1px',
-					color,
+					color: 'fg.muted',
 					display: 'inline-flex',
-					fontSize: 'xs',
-					fontWeight: 'bold',
 					h: '5',
 					justifyContent: 'center',
+					lineHeight: '1',
+					p: '0',
 					w: '5',
 				})}
 			>
-				{children ?? 'i'}
+				{children ?? <InfoIcon />}
 			</button>
 			<Box
 				data-tooltip
@@ -60,5 +63,14 @@ export function InfoTooltip({
 				{message}
 			</Box>
 		</Box>
+	)
+}
+
+function InfoIcon() {
+	return (
+		<svg aria-hidden="true" fill="none" height="14" viewBox="0 0 10 10" width="14">
+			<path d="M5 4.2v3" stroke="currentColor" strokeLinecap="round" strokeWidth="1.4" />
+			<circle cx="5" cy="2.6" fill="currentColor" r="0.8" />
+		</svg>
 	)
 }

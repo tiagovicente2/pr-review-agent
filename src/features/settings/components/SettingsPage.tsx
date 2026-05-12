@@ -158,7 +158,7 @@ export function SettingsPage({
 						minH="0"
 						overflow="hidden"
 					>
-						<Stack gap="4" minH="0" overflowY="auto">
+						<Stack gap="4" h="100%" minH="0" overflowY="auto">
 							<PreferencesCard
 								availableModels={availableModels}
 								onChange={setSettings}

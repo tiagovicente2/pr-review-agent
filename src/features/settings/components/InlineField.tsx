@@ -18,7 +18,7 @@ export function InlineField({
 			borderColor="border.subtle"
 			py="2"
 		>
-			<HStack gap="1.5">
+			<HStack alignItems="center" gap="1.5">
 				<Box fontWeight="medium" textStyle="sm">
 					{label}
 				</Box>

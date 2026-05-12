@@ -539,22 +539,45 @@ export async function getGitHubPullRequestDetails(params: {
 
 export async function getGitHubAsset(params: { url: string }): Promise<{ dataUrl: string }> {
 	const parsedUrl = new URL(params.url)
-	if (parsedUrl.hostname !== 'github.com') {
-		throw new Error('Only github.com asset URLs can be loaded.')
+	if (!['github.com', 'user-images.githubusercontent.com', 'private-user-images.githubusercontent.com'].includes(parsedUrl.hostname)) {
+		throw new Error('Only GitHub asset URLs can be loaded.')
 	}
 
-	const result = await runGhBinary([
-		'api',
-		parsedUrl.pathname,
-		'--header',
-		'Accept: application/octet-stream',
-	])
+	const result = parsedUrl.hostname === 'github.com'
+		? await runGhBinary([
+			'api',
+			`${parsedUrl.pathname}${parsedUrl.search}`,
+			'--header',
+			'Accept: application/octet-stream',
+		])
+		: await fetchGitHubAssetUrl(params.url)
+
 	if (result.exitCode !== 0) {
 		throw new Error(result.stderr || 'GitHub CLI failed while trying to fetch GitHub asset.')
 	}
 
 	const data = Buffer.from(result.stdout).toString('base64')
-	return { dataUrl: `data:image/png;base64,${data}` }
+	return { dataUrl: `data:${getImageContentType(params.url)};base64,${data}` }
+}
+
+async function fetchGitHubAssetUrl(url: string): Promise<Awaited<ReturnType<typeof runGhBinary>>> {
+	return runGhBinary([
+		'api',
+		url,
+		'--method',
+		'GET',
+		'--header',
+		'Accept: application/octet-stream',
+	])
+}
+
+function getImageContentType(url: string) {
+	const pathname = new URL(url).pathname.toLowerCase()
+	if (pathname.endsWith('.jpg') || pathname.endsWith('.jpeg')) return 'image/jpeg'
+	if (pathname.endsWith('.gif')) return 'image/gif'
+	if (pathname.endsWith('.webp')) return 'image/webp'
+	if (pathname.endsWith('.svg')) return 'image/svg+xml'
+	return 'image/png'
 }
 
 export async function getGitHubPullRequestDiff(params: {

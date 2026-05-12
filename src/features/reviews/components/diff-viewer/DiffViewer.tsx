@@ -4,6 +4,7 @@ import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { css } from 'styled-system/css'
 import { Box, HStack, Stack } from 'styled-system/jsx'
 import { Badge } from '@/components/ui'
+import { reviewColors } from '@/theme/tokens/review'
 import type { PiInlineComment } from '@/shared/review'
 
 type DiffAnnotation = {
@@ -198,7 +199,7 @@ function DiffFileHeader({
 					<Badge colorPalette="gray" variant="surface">
 						{fileDiff.type}
 					</Badge>
-					<Box color="green.11">+{additions}</Box>
+					<Box color={reviewColors.blue}>+{additions}</Box>
 					<Box color="red.11">-{deletions}</Box>
 				</HStack>
 			</HStack>
@@ -268,8 +269,8 @@ function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
 	return (
 		<Box p="2" w="100%">
 			<Box
-				bg="cyan.subtle.bg"
-				borderColor="cyan.surface.border"
+				bg={reviewColors.commentBg}
+				borderColor={reviewColors.commentBorder}
 				borderRadius="l2"
 				borderWidth="1px"
 				maxW="100%"
@@ -277,11 +278,15 @@ function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
 				overflow="hidden"
 				p="3"
 			>
-				<Badge colorPalette="cyan" size="sm">
+				<Badge
+					colorPalette="cyan"
+					size="sm"
+					style={{ backgroundColor: reviewColors.commentTagBg, color: reviewColors.commentBg }}
+				>
 					Review comment
 				</Badge>
 				<Box
-					color="fg.default"
+					color="black"
 					mt="2"
 					textStyle="sm"
 					whiteSpace="pre-wrap"

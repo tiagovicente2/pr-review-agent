@@ -1,24 +1,27 @@
 # PR Review Agent
 
-Local-first desktop app for AI-assisted GitHub pull request review drafts.
+Local-first desktop app for generating and publishing AI-assisted GitHub pull request review drafts.
 
-PR Review Agent helps you load GitHub PRs, inspect their summary and diff, generate a local draft review with your preferred coding agent, and optionally publish individual review comments after explicit confirmation.
+## What it does
 
-## Features
+PR Review Agent gives you a focused inbox for PRs that need your review. You can inspect the PR summary and diff, generate a draft review with a local coding agent, edit the suggested comments, and publish only the comments you choose.
 
-- Review inbox for PRs requesting your review.
-- Manual PR loading by GitHub URL, `owner/repo#123`, or `owner/repo 123`.
-- PR summary rendering with GitHub-flavored Markdown and GitHub-hosted images.
-- Lightweight code tab with changed-file tree and collapsible per-file diffs.
+## Core features
+
+- Review inbox for GitHub PRs requesting your review.
+- Manual PR lookup by URL, `owner/repo#123`, or `owner/repo 123`.
+- GitHub-flavored Markdown PR summaries, including GitHub-hosted images.
+- Changed-file tree with collapsible per-file diffs.
 - Local draft review generation with selectable agents:
   - Pi
   - Claude
   - opencode
-- Agent/model settings and readiness status checks.
-- Local saved generated reviews.
+  - Codex
+- Agent/model settings with readiness checks.
+- Locally saved generated reviews.
 - Explicit publish flow for generated inline comments.
 
-## Install from GitHub Releases
+## Install
 
 Linux/macOS:
 
@@ -34,67 +37,31 @@ irm https://raw.githubusercontent.com/tiagovicente2/pr-review-agent/main/scripts
 
 ## Requirements
 
-- [GitHub CLI](https://cli.github.com/) authenticated with access to the target repositories
-- At least one supported review agent installed and authenticated:
-  - `pi`
-  - `claude`
-  - `opencode`
+- [GitHub CLI](https://cli.github.com/) authenticated with access to the target repositories.
+- At least one supported review agent installed and authenticated: `pi`, `claude`, `opencode`, or `codex`.
 
-Authenticate GitHub with either the in-app onboarding flow or:
+Authenticate GitHub in the app onboarding flow or manually:
 
 ```bash
 gh auth login --web --git-protocol https
 ```
 
-## Safety
+## Safety model
 
-The app does not submit GitHub reviews automatically. Generated output stays local until you explicitly publish selected comments in the UI.
+PR Review Agent does not approve, request changes, merge, or submit full GitHub reviews automatically. Generated content stays local until you explicitly publish selected inline comments from the UI.
 
-## Development
+Publishing comments uses the GitHub CLI directly; it does not ask a model to perform publishing actions.
 
-Development requires [Bun](https://bun.sh/).
+## Documentation
+
+- [Development](docs/development.md)
+- [Releases](docs/releases.md)
+- [Architecture notes](docs/architecture.md)
+
+## Quick development start
 
 ```bash
 bun install
 bun run typecheck
-bun run build
-```
-
-Run locally:
-
-```bash
-# Electrobun watch mode
 bun run dev
-
-# Vite HMR + Electrobun
-bun run dev:hmr
 ```
-
-## Build the desktop app locally
-
-```bash
-bun run build:app
-```
-
-The packaged app is written under `build/`.
-
-## Publish a release
-
-Create and push a version tag:
-
-```bash
-git tag v0.1.1
-git push origin v0.1.1
-```
-
-GitHub Actions builds Linux, macOS, and Windows artifacts and attaches them to the release.
-
-## Scripts
-
-- `bun run lint` — lint with Biome
-- `bun run format` — format with Biome
-- `bun run check` — run Biome lint + format checks
-- `bun run panda:build` — generate Panda CSS system and styles
-- `bun run typecheck` — generate Panda output and run TypeScript checks
-- `bun run build` — generate Panda output and build the React renderer
-- `bun run build:app` — generate Panda output and build the Electrobun app

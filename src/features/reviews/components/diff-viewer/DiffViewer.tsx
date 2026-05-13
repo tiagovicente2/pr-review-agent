@@ -1,15 +1,12 @@
 import { parsePatchFiles } from '@pierre/diffs'
-import { type DiffLineAnnotation, FileDiff, type FileDiffMetadata } from '@pierre/diffs/react'
+import { FileDiff, type FileDiffMetadata } from '@pierre/diffs/react'
 import { memo, useEffect, useMemo, useRef, useState } from 'react'
 import { css } from 'styled-system/css'
 import { Box, HStack, Stack } from 'styled-system/jsx'
 import { Badge } from '@/components/ui'
-import { reviewColors } from '@/theme/tokens/review'
 import type { PiInlineComment } from '@/shared/review'
-
-type DiffAnnotation = {
-	body: string
-}
+import { getFileDiffKey, getLineAnnotations, getScrollableParent, groupInlineCommentsByPath } from './diffViewerUtils'
+import { ReviewCommentAnnotation } from './ReviewCommentAnnotation'
 
 type ParsedPatchState =
 	| { files: FileDiffMetadata[]; error?: undefined }
@@ -144,7 +141,7 @@ export const DiffViewer = memo(function DiffViewer({
 								fileDiff={fileDiff}
 								lineAnnotations={getLineAnnotations(fileDiff, inlineCommentsByPath)}
 								options={{ ...options, disableFileHeader: true }}
-								renderAnnotation={renderAnnotation}
+								renderAnnotation={ReviewCommentAnnotation}
 							/>
 						)}
 					</Box>
@@ -199,30 +196,12 @@ function DiffFileHeader({
 					<Badge colorPalette="gray" variant="surface">
 						{fileDiff.type}
 					</Badge>
-					<Box color={reviewColors.blue}>+{additions}</Box>
+					<Box color="review.blue">+{additions}</Box>
 					<Box color="red.11">-{deletions}</Box>
 				</HStack>
 			</HStack>
 		</Box>
 	)
-}
-
-function getScrollableParent(node: HTMLElement) {
-	let parent = node.parentElement
-	while (parent) {
-		const style = window.getComputedStyle(parent)
-		const canScrollY = /(auto|scroll)/.test(style.overflowY)
-		if (canScrollY && parent.scrollHeight > parent.clientHeight) {
-			return parent
-		}
-		parent = parent.parentElement
-	}
-
-	return null
-}
-
-function getFileDiffKey(fileDiff: FileDiffMetadata) {
-	return fileDiff.cacheKey ?? `${fileDiff.prevName ?? ''}->${fileDiff.name}:${fileDiff.type}`
 }
 
 function parsePatch(patch: string): ParsedPatchState {
@@ -238,65 +217,6 @@ function parsePatch(patch: string): ParsedPatchState {
 			error: error instanceof Error ? error.message : String(error),
 		}
 	}
-}
-
-function groupInlineCommentsByPath(inlineComments: PiInlineComment[]) {
-	const commentsByPath = new Map<string, PiInlineComment[]>()
-	for (const comment of inlineComments) {
-		commentsByPath.set(comment.path, [...(commentsByPath.get(comment.path) ?? []), comment])
-	}
-	return commentsByPath
-}
-
-function getLineAnnotations(
-	fileDiff: FileDiffMetadata,
-	inlineCommentsByPath: Map<string, PiInlineComment[]>,
-): DiffLineAnnotation<DiffAnnotation>[] {
-	return [
-		...(inlineCommentsByPath.get(fileDiff.name) ?? []),
-		...(fileDiff.prevName ? (inlineCommentsByPath.get(fileDiff.prevName) ?? []) : []),
-	]
-		.map((comment) => ({
-			lineNumber: comment.line,
-			metadata: {
-				body: comment.body,
-			},
-			side: comment.side === 'LEFT' ? 'deletions' : 'additions',
-		}))
-}
-
-function renderAnnotation(annotation: DiffLineAnnotation<DiffAnnotation>) {
-	return (
-		<Box p="2" w="100%">
-			<Box
-				bg={reviewColors.commentBg}
-				borderColor={reviewColors.commentBorder}
-				borderRadius="l2"
-				borderWidth="1px"
-				maxW="100%"
-				minW="0"
-				overflow="hidden"
-				p="3"
-			>
-				<Badge
-					colorPalette="cyan"
-					size="sm"
-					style={{ backgroundColor: reviewColors.commentTagBg, color: reviewColors.commentBg }}
-				>
-					Review comment
-				</Badge>
-				<Box
-					color="black"
-					mt="2"
-					textStyle="sm"
-					whiteSpace="pre-wrap"
-					wordBreak="break-word"
-				>
-					{annotation.metadata.body}
-				</Box>
-			</Box>
-		</Box>
-	)
 }
 
 function DiffStatus({

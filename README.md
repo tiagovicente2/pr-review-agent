@@ -50,8 +50,6 @@ gh auth login --web --git-protocol https
 
 PR Review Agent does not approve, request changes, merge, or submit full GitHub reviews automatically. Generated content stays local until you explicitly publish selected inline comments from the UI.
 
-Publishing comments uses the GitHub CLI directly; it does not ask a model to perform publishing actions.
-
 ## Documentation
 
 - [Development](docs/development.md)

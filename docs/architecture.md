@@ -26,10 +26,6 @@ Supported agents:
 
 The selected model is read from app settings.
 
-## Comment publishing
-
-Publishing generated review comments does not use a model. The Bun service calls GitHub directly through `gh api` for each selected inline comment.
-
 ## Styling
 
 The project uses Panda CSS with:

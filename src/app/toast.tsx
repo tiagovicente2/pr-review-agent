@@ -1,7 +1,6 @@
 import { createContext, type ReactNode, useCallback, useContext, useMemo, useState } from 'react'
 import { css, cx } from 'styled-system/css'
 import { Box, Stack } from 'styled-system/jsx'
-import { reviewColors } from '@/theme/tokens/review'
 
 type ToastTone = 'success' | 'error' | 'info'
 
@@ -20,7 +19,7 @@ type ToastContextValue = {
 const ToastContext = createContext<ToastContextValue | null>(null)
 
 const toastToneClassNames: Record<ToastTone, string> = {
-	success: css({ color: 'white' }),
+	success: css({ bg: 'review.blue', borderColor: 'review.blue', color: 'white' }),
 	error: css({ bg: 'red.9', borderColor: 'red.9', color: 'white' }),
 	info: css({ bg: 'black', borderColor: 'black', color: 'white' }),
 }
@@ -63,7 +62,6 @@ export function ToastProvider({ children }: { children: ReactNode }) {
 				{toasts.map((toast) => (
 					<Box
 						className={toastToneClassNames[toast.tone]}
-						style={toast.tone === 'success' ? { backgroundColor: reviewColors.blue, borderColor: reviewColors.blue } : undefined}
 						borderLeftWidth="4px"
 						borderRadius="l2"
 						boxShadow="xl"

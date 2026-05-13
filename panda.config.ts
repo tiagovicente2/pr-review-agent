@@ -83,6 +83,13 @@ export default defineConfig({
 					gray: slate,
 					red: red,
 					green: green,
+
+					review: {
+						blue: { value: { _light: '#0969da', _dark: '#0969da' } },
+						commentBg: { value: { _light: '#fff8c5', _dark: '#fff8c5' } },
+						commentBorder: { value: { _light: '#d4a72c', _dark: '#d4a72c' } },
+						commentTagBg: { value: { _light: '#00a2c7', _dark: '#00a2c7' } },
+					},
 				},
 
 				shadows: shadows,

@@ -98,7 +98,10 @@ function App() {
 			setAuthState('idle')
 
 			if (status.authenticated) {
-				await loadReviewRequests()
+				const loaded = await loadReviewRequests()
+				if (!loaded) {
+					setStartupError('Could not load review requests. Try again or check GitHub access.')
+				}
 			}
 		} catch (error) {
 			const message = logError('Could not check GitHub auth', error, 'Startup')
@@ -169,7 +172,10 @@ function App() {
 			setConnectState(result.ok ? 'idle' : 'error')
 
 			if (result.status.authenticated) {
-				await loadReviewRequests()
+				const loaded = await loadReviewRequests()
+				if (!loaded) {
+					setStartupError('Could not load review requests. Try again or check GitHub access.')
+				}
 			}
 		} catch (error) {
 			setLoginOutput(logError('Could not connect GitHub', error, 'GitHub login'))

@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useMemo, useState } from 'react'
-import { Box, Grid } from 'styled-system/jsx'
+import { Box } from 'styled-system/jsx'
 import { useAgentAvailability } from '@/app/hooks/useAgentAvailability'
 import { useColorMode } from '@/app/hooks/useColorMode'
 import { useErrorLog } from '@/app/hooks/useErrorLog'
@@ -7,11 +7,10 @@ import { usePullRequestDetails } from '@/app/hooks/usePullRequestDetails'
 import { isPullRequestQuery, useReviewRequests } from '@/app/hooks/useReviewRequests'
 import { OnboardingPage } from '@/features/auth/components/OnboardingPage'
 import { ErrorLogPage } from '@/features/errors/components/ErrorLogPage'
-import { ReviewDetail } from '@/features/reviews/components/ReviewDetail'
-import { ReviewInbox } from '@/features/reviews/components/ReviewInbox'
 import { SettingsPage } from '@/features/settings/components/SettingsPage'
 import type { GitHubAuthStatus } from '@/shared/github'
 import type { AppSettings } from '@/shared/settings'
+import { MainReviewScreen } from './MainReviewScreen'
 import { appRpc } from './rpc'
 import type { AsyncState } from './types'
 
@@ -208,42 +207,32 @@ function App() {
 					status={currentAuthStatus}
 				/>
 			) : (
-				<Grid
-					gridTemplateColumns={{ base: 'minmax(0, 1fr)', lg: '24rem minmax(0, 1fr)' }}
-					h="100%"
-					minH="0"
-					minW="0"
-					overflow={{ base: 'auto', lg: 'hidden' }}
-					overflowX="hidden"
-				>
-					<ReviewInbox
-						canReviewPrQuery={canReviewPrQuery}
-						onClearSearch={handleClearSearch}
-						onOpenSettings={() => setShowSettings(true)}
-						onRefresh={loadReviewRequests}
-						onReviewPr={handleReviewPr}
-						onSearch={handleSearch}
-						onSelectReview={setSelectedReviewId}
-						query={query}
-						reviews={displayedReviews}
-						reviewPrState={reviewPrState}
-						reviewsState={reviewsState}
-						searchMode={searchMode}
-						showResetAction={searchActive && query.trim() === activeSearchQuery}
-						selectedReviewId={selectedReviewId}
-						setQuery={setQuery}
-						setSearchMode={setSearchMode}
-						username={currentAuthStatus.username}
-					/>
-					<ReviewDetail
-						colorMode={colorMode}
-						detail={detail}
-						detailError={detailError}
-						detailState={detailState}
-						review={selectedReview}
-						setSummary={setSummary}
-					/>
-				</Grid>
+				<MainReviewScreen
+					activeSearchQuery={activeSearchQuery}
+					canReviewPrQuery={canReviewPrQuery}
+					colorMode={colorMode}
+					currentAuthStatus={currentAuthStatus}
+					detail={detail}
+					detailError={detailError}
+					detailState={detailState}
+					displayedReviews={displayedReviews}
+					loadReviewRequests={loadReviewRequests}
+					onClearSearch={handleClearSearch}
+					onOpenSettings={() => setShowSettings(true)}
+					onReviewPr={handleReviewPr}
+					onSearch={handleSearch}
+					query={query}
+					reviewPrState={reviewPrState}
+					reviewsState={reviewsState}
+					searchActive={searchActive}
+					searchMode={searchMode}
+					selectedReview={selectedReview}
+					selectedReviewId={selectedReviewId}
+					setQuery={setQuery}
+					setSearchMode={setSearchMode}
+					setSelectedReviewId={setSelectedReviewId}
+					setSummary={setSummary}
+				/>
 			)}
 		</Box>
 	)

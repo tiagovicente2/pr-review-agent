@@ -14,7 +14,7 @@ type MainReviewScreenProps = {
 	detailError: string
 	detailState: AsyncState
 	displayedReviews: GitHubReviewRequest[]
-	loadReviewRequests: () => void | Promise<void>
+	loadReviewRequests: () => void | Promise<void | boolean>
 	onClearSearch: () => void
 	onOpenSettings: () => void
 	onReviewPr: () => void | Promise<void>

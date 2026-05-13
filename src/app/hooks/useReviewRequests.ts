@@ -44,9 +44,11 @@ export function useReviewRequests({
 				current && items.some((item) => item.id === current) ? current : items[0]?.id ?? null,
 			)
 			setReviewsState('idle')
+			return true
 		} catch (error) {
 			logError('Could not load review requests', error, 'GitHub review inbox')
 			setReviewsState('error')
+			return false
 		}
 	}, [logError])
 

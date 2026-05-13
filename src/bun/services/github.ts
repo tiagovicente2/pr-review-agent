@@ -124,10 +124,15 @@ function getRepoParts(repo: string) {
 
 function rewriteGitHubAssetUrls(markdown: string, repo: string) {
 	const { owner, name } = getRepoParts(repo)
-	return markdown.replace(
-		/(<img\b[^>]*\bsrc=["']|!\[[^\]]*\]\()\/?assets\//gi,
-		`$1https://github.com/${owner}/${name}/assets/`,
-	)
+	return markdown
+		.replace(
+			/(<img\b[^>]*\bsrc=["']|!\[[^\]]*\]\()\/?assets\//gi,
+			`$1https://github.com/${owner}/${name}/assets/`,
+		)
+		.replace(
+			/(<img\b[^>]*\bsrc=["']|!\[[^\]]*\]\()\/?user-attachments\/assets\//gi,
+			'$1https://github.com/user-attachments/assets/',
+		)
 }
 
 function getAuthorLogin(author: unknown): string {
@@ -543,14 +548,7 @@ export async function getGitHubAsset(params: { url: string }): Promise<{ dataUrl
 		throw new Error('Only GitHub asset URLs can be loaded.')
 	}
 
-	const result = parsedUrl.hostname === 'github.com'
-		? await runGhBinary([
-			'api',
-			`${parsedUrl.pathname}${parsedUrl.search}`,
-			'--header',
-			'Accept: application/octet-stream',
-		])
-		: await fetchGitHubAssetUrl(params.url)
+	const result = await fetchGitHubAssetUrl(params.url)
 
 	if (result.exitCode !== 0) {
 		throw new Error(result.stderr || 'GitHub CLI failed while trying to fetch GitHub asset.')

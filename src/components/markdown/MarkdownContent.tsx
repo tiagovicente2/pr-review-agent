@@ -76,8 +76,15 @@ function isGitHubImageSrc(src?: string) {
 
 function GitHubImage({ alt, src }: { alt?: string; src?: string }) {
 	const [dataUrl, setDataUrl] = useState<string | null>(null)
+	const [state, setState] = useState<'loading' | 'loaded' | 'failed'>(
+		src && isGitHubImageSrc(src) ? 'loading' : 'loaded',
+	)
+	const shouldProxy = src ? isGitHubImageSrc(src) : false
 
 	useEffect(() => {
+		setDataUrl(null)
+		setState(src && isGitHubImageSrc(src) ? 'loading' : 'loaded')
+
 		if (!src || !isGitHubImageSrc(src)) return
 		let cancelled = false
 		appRpc.request
@@ -85,13 +92,50 @@ function GitHubImage({ alt, src }: { alt?: string; src?: string }) {
 			.then((result) => {
 				if (!cancelled) setDataUrl(result.dataUrl)
 			})
-			.catch(() => undefined)
+			.catch(() => {
+				if (!cancelled) setState('failed')
+			})
 		return () => {
 			cancelled = true
 		}
 	}, [src])
 
-	return <img alt={alt ?? ''} src={dataUrl ?? src} />
+	if (!src) return null
+
+	return (
+		<Box position="relative" minH={state === 'loading' ? '10' : undefined}>
+			{state === 'loading' ? (
+				<Box
+					aria-hidden="true"
+					bg="gray.2"
+					borderColor="border.default"
+					borderRadius="l2"
+					borderWidth="1px"
+					color="fg.muted"
+					my="3"
+					px="3"
+					py="2"
+					textStyle="xs"
+				>
+					Loading image…
+				</Box>
+			) : null}
+			{state === 'failed' ? (
+				<Box color="fg.muted" my="3" textStyle="xs">
+					Image could not be loaded.
+				</Box>
+			) : null}
+			<img
+				alt={alt ?? ''}
+				decoding="async"
+				loading="lazy"
+				onError={() => setState('failed')}
+				onLoad={() => setState('loaded')}
+				src={shouldProxy ? dataUrl || undefined : src}
+				style={{ display: state === 'loaded' ? undefined : 'none' }}
+			/>
+		</Box>
+	)
 }
 
 export function MarkdownContent({ children }: { children: string }) {

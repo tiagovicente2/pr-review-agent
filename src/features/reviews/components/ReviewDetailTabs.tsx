@@ -29,27 +29,29 @@ export function ReviewTab({
 	publishingFindingIds: Set<string>
 }) {
 	return (
-		<Stack gap="4" h="100%" minH="0" overflow="hidden">
-			<Box
-				boxSizing="border-box"
-				h="100%"
-				minH="0"
-				overflowY="auto"
-				pr="3"
-				scrollbarGutter="stable"
-				textAlign={generatedReview ? 'left' : 'center'}
-				w="100%"
-			>
-				<GeneratedFindings
-					error={generationError || publishError}
-					generationMessage={generationMessage}
-					generationState={generationState}
-					onPublishFinding={onPublishFinding}
-					publishingFindingIds={publishingFindingIds}
-					review={generatedReview}
-				/>
-			</Box>
-		</Stack>
+		<Card.Root h="100%" minH="0" overflow="hidden" variant="outline">
+			<Card.Body minH="0" overflow="hidden" py="4">
+				<Box
+					boxSizing="border-box"
+					h="100%"
+					minH="0"
+					overflowY="auto"
+					pr="3"
+					scrollbarGutter="stable"
+					textAlign={generatedReview ? 'left' : 'center'}
+					w="100%"
+				>
+					<GeneratedFindings
+						error={generationError || publishError}
+						generationMessage={generationMessage}
+						generationState={generationState}
+						onPublishFinding={onPublishFinding}
+						publishingFindingIds={publishingFindingIds}
+						review={generatedReview}
+					/>
+				</Box>
+			</Card.Body>
+		</Card.Root>
 	)
 }
 
@@ -132,67 +134,70 @@ export function CodeTab({
 				</Card.Body>
 			</Card.Root>
 
-			<Box
+			<Card.Root
 				h="100%"
 				maxH={{ base: '70vh', xl: '100%' }}
 				maxW="100%"
 				minH="0"
 				minW="0"
-				overflow="auto"
-				pr="3"
-				scrollbarGutter="stable"
+				overflow="hidden"
+				variant="outline"
 			>
-				{diff && selectedFilePath ? (
-					<DiffViewer
-						colorMode={colorMode}
-						inlineComments={inlineComments}
-						patch={diff}
-						selectedFilePath={selectedFilePath}
-					/>
-				) : diff ? (
-					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
-						<StatusCard
-							title="No file selected"
-							body="Choose a changed file from the tree to render its diff."
-						/>
-					</Stack>
-				) : (
-					<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
-						<StatusCard
-							tone={diffError ? 'red' : 'gray'}
-							title={diffError ? 'Could not load diff' : 'Loading diff'}
-							body={diffError || 'Loading the patch in the background...'}
-						/>
-						{diffError ? (
-							<Button loading={diffState === 'loading'} onClick={() => void onLoadDiff()}>
-								Retry loading diff
-							</Button>
-						) : null}
-					</Stack>
-				)}
-			</Box>
+				<Card.Body minH="0" overflow="hidden" py="4">
+					<Box h="100%" minH="0" overflow="auto" pr="3" scrollbarGutter="stable">
+						{diff && selectedFilePath ? (
+							<DiffViewer
+								colorMode={colorMode}
+								inlineComments={inlineComments}
+								patch={diff}
+								selectedFilePath={selectedFilePath}
+							/>
+						) : diff ? (
+							<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
+								<StatusCard
+									title="No file selected"
+									body="Choose a changed file from the tree to render its diff."
+								/>
+							</Stack>
+						) : (
+							<Stack h="100%" placeContent="center" alignItems="center" gap="4" textAlign="center">
+								<StatusCard
+									tone={diffError ? 'red' : 'gray'}
+									title={diffError ? 'Could not load diff' : 'Loading diff'}
+									body={diffError || 'Loading the patch in the background...'}
+								/>
+								{diffError ? (
+									<Button loading={diffState === 'loading'} onClick={() => void onLoadDiff()}>
+										Retry loading diff
+									</Button>
+								) : null}
+							</Stack>
+						)}
+					</Box>
+				</Card.Body>
+			</Card.Root>
 		</Grid>
 	)
 }
 
 export function SummaryTab({ detail }: { detail: GitHubPullRequestDetails | null }) {
 	return (
-		<Stack h="100%" maxH={{ base: '70vh', xl: 'calc(100vh - 18rem)' }} minH="0" overflow="hidden">
-			<Card.Root h="100%" minH="0" overflow="hidden" variant="outline">
-				<Card.Header>
-					<Card.Title>Pull request summary</Card.Title>
-					<Card.Description>
-						{detail
-							? `${detail.headRefName} → ${detail.baseRefName} · ${detail.changedFilesCount} files changed`
-							: 'Load a pull request to see its summary.'}
-					</Card.Description>
-				</Card.Header>
-				<Card.Body minH="0" overflowY="auto">
+		<Card.Root h="100%" minH="0" overflow="hidden" variant="outline">
+			<Card.Header flexShrink="0">
+				<Card.Title>Pull request summary</Card.Title>
+				<Card.Description>
+					{detail
+						? `${detail.headRefName} → ${detail.baseRefName} · ${detail.changedFilesCount} files changed`
+						: 'Load a pull request to see its summary.'}
+				</Card.Description>
+			</Card.Header>
+			<Card.Body minH="0" overflow="hidden">
+				<Box h="100%" minH="0" overflowY="auto" pr="3" scrollbarGutter="stable">
 					<MarkdownContent>
 						{detail?.body || 'This pull request does not include a description.'}
 					</MarkdownContent>
-				</Card.Body>
-			</Card.Root>
-		</Stack>
+				</Box>
+			</Card.Body>
+		</Card.Root>
 	)
 }

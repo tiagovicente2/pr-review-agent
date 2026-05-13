@@ -6,6 +6,7 @@ import { useErrorLog } from '@/app/hooks/useErrorLog'
 import { usePullRequestDetails } from '@/app/hooks/usePullRequestDetails'
 import { isPullRequestQuery, useReviewRequests } from '@/app/hooks/useReviewRequests'
 import { OnboardingPage } from '@/features/auth/components/OnboardingPage'
+import { OpeningScreen } from '@/features/auth/components/OpeningScreen'
 import { ErrorLogPage } from '@/features/errors/components/ErrorLogPage'
 import { SettingsPage } from '@/features/settings/components/SettingsPage'
 import type { GitHubAuthStatus } from '@/shared/github'
@@ -23,7 +24,9 @@ const emptyAuthStatus: GitHubAuthStatus = {
 function App() {
 	const [showSettings, setShowSettings] = useState(false)
 	const [showErrorLog, setShowErrorLog] = useState(false)
-	const [onboardingComplete, setOnboardingComplete] = useState(false)
+	const [onboardingComplete, setOnboardingComplete] = useState<boolean | null>(null)
+	const [settingsState, setSettingsState] = useState<AsyncState>('loading')
+	const [startupError, setStartupError] = useState('')
 	const [authStatus, setAuthStatus] = useState<GitHubAuthStatus | null>(null)
 	const [authState, setAuthState] = useState<AsyncState>('loading')
 	const [connectState, setConnectState] = useState<AsyncState>('idle')
@@ -56,18 +59,29 @@ function App() {
 		setSelectedReviewId,
 	} = useReviewRequests({ logError })
 
+	const loadSettings = useCallback(async () => {
+		setSettingsState('loading')
+		setStartupError('')
+		try {
+			const settings = await appRpc.request.getAppSettings()
+			setColorModePreference(settings.colorMode)
+			setOnboardingComplete(settings.onboardingComplete)
+			setSettingsState('idle')
+		} catch (error) {
+			setStartupError(logError('Could not load app settings', error, 'Startup'))
+			setSettingsState('error')
+		}
+	}, [logError, setColorModePreference])
+
 	useEffect(() => {
-		appRpc.request
-			.getAppSettings()
-			.then((settings) => {
-				setColorModePreference(settings.colorMode)
-				setOnboardingComplete(settings.onboardingComplete)
-			})
-			.catch(() => undefined)
-	}, [setColorModePreference])
+		void loadSettings()
+	}, [loadSettings])
 
 	const handleSettingsSaved = (settings: AppSettings) => {
 		setColorModePreference(settings.colorMode)
+		setOnboardingComplete(settings.onboardingComplete)
+		setSettingsState('idle')
+		setStartupError('')
 	}
 
 	const completeOnboarding = async () => {
@@ -77,6 +91,7 @@ function App() {
 
 	const refreshAuth = useCallback(async () => {
 		setAuthState('loading')
+		setStartupError('')
 		try {
 			const status = await appRpc.request.getGitHubAuthStatus()
 			setAuthStatus(status)
@@ -86,11 +101,13 @@ function App() {
 				await loadReviewRequests()
 			}
 		} catch (error) {
+			const message = logError('Could not check GitHub auth', error, 'Startup')
 			setAuthStatus({
 				ghInstalled: false,
 				authenticated: false,
-				error: logError('Could not check GitHub auth', error, 'Onboarding'),
+				error: message,
 			})
+			setStartupError(message)
 			setAuthState('error')
 		}
 	}, [loadReviewRequests, logError])
@@ -161,11 +178,19 @@ function App() {
 	}
 
 	const handleRefreshSetup = () => {
+		void loadSettings()
 		void refreshAuth()
 		void refreshAgents()
 	}
 
 	const currentAuthStatus = authStatus ?? emptyAuthStatus
+	const setupLoading = settingsState === 'loading' || authState === 'loading'
+	const setupError = startupError || (settingsState === 'error' ? 'Could not load app settings.' : '')
+	const shouldShowOpeningScreen =
+		!showErrorLog &&
+		!showSettings &&
+		(setupLoading || Boolean(setupError)) &&
+		(onboardingComplete === null || onboardingComplete)
 
 	return (
 		<Box
@@ -177,7 +202,13 @@ function App() {
 			color="fg.default"
 			colorPalette="cyan"
 		>
-			{showErrorLog ? (
+			{shouldShowOpeningScreen ? (
+				<OpeningScreen
+					error={setupError}
+					onOpenSettings={() => setShowSettings(true)}
+					onRetry={handleRefreshSetup}
+				/>
+			) : showErrorLog ? (
 				<ErrorLogPage
 					errors={errorLogs}
 					onBack={() => setShowErrorLog(false)}

@@ -55,6 +55,7 @@ export function OnboardingPage({
 					<Stack gap="4">
 						<GitHubCliStep authState={authState} status={status} />
 						<AgentStep agents={agentAvailability} agentsState={agentsState} />
+						<ReviewerInstructionsStep onOpenSettings={onOpenSettings} />
 						<PreferencesStep onOpenSettings={onOpenSettings} />
 						<ConnectStep status={status} />
 						<LoginOutput output={loginOutput} />
@@ -131,12 +132,29 @@ function AgentStep({
 	)
 }
 
-function PreferencesStep({ onOpenSettings }: { onOpenSettings: () => void }) {
+function ReviewerInstructionsStep({ onOpenSettings }: { onOpenSettings: () => void }) {
 	return (
-		<OnboardingStep badge="Optional" badgeTone="gray" index="3" title="Review preferences">
+		<OnboardingStep badge="Recommended" badgeTone="cyan" index="3" title="Add reviewer instructions">
 			<Stack gap="3">
 				<Box color="fg.muted" textStyle="sm">
-					Choose the theme, review language, and reviewer instructions used for generated drafts.
+					Tell the reviewer how to review your PRs: preferred language, severity style, project
+					standards, comment format, and anything it should always check or avoid. You can paste an
+					existing review prompt in settings.
+				</Box>
+				<Button alignSelf="flex-start" size="sm" variant="outline" onClick={onOpenSettings}>
+					Add reviewer instructions
+				</Button>
+			</Stack>
+		</OnboardingStep>
+	)
+}
+
+function PreferencesStep({ onOpenSettings }: { onOpenSettings: () => void }) {
+	return (
+		<OnboardingStep badge="Optional" badgeTone="gray" index="4" title="Review preferences">
+			<Stack gap="3">
+				<Box color="fg.muted" textStyle="sm">
+					Choose the theme, review language, and default review agent/model used for generated drafts.
 				</Box>
 				<Button alignSelf="flex-start" size="sm" variant="outline" onClick={onOpenSettings}>
 					Open settings
@@ -151,7 +169,7 @@ function ConnectStep({ status }: { status: GitHubAuthStatus }) {
 		<OnboardingStep
 			badge={status.authenticated ? 'Authenticated' : 'Not connected'}
 			badgeTone={status.authenticated ? 'green' : 'cyan'}
-			index="4"
+			index="5"
 			title="Authenticate GitHub"
 		>
 			<Box color="fg.muted" textStyle="sm">
